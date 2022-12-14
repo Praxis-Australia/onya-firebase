@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  function isUser(auth, uid) {
+    return auth != null && auth.uid == uid;
+  }
+
+  function isUserUpdateValid(updateData, currentData) {
+    let mapDiff = updateData.diff(currentData);
+    let allowedFieldChanges = [
+      'giving_pref',
+      'offset_config',
+      'pledge_config',
+      'roundup_config',
+      'charity_pref'
+    ];
+
+    let isGivingPrefValid = 
+      updateData.giving_pref.diff(currentData.giving_pref).addedKeys().size() == 0 &&
+      updateData.giving_pref.diff(currentData.giving_pref).removedKeys().size() == 0 &&
+      updateData.giving_pref.fuel_offset is bool &&
+      updateData.giving_pref.pledge is bool &&
+      updateData.giving_pref.round_up is bool;
+
+    let isRoundupConfigValid = 
+      updateData.roundup_config.diff(currentData.roundup_config).addedKeys().size() == 0 &&
+      updateData.roundup_config.diff(currentData.roundup_config).removedKeys().size() == 0 &&
+      updateData.roundup_config.cap in [500, 1000, 2000] &&
+      updateData.roundup_config.to in [100, 200, 500];
+
+    let isCharityPrefValid =
+      updateData.charity_pref.diff(currentData.charity_pref).addedKeys().size() == 0 &&
+      updateData.charity_pref.diff(currentData.charity_pref).removedKeys().size() == 0 &&
+      updateData.charity_pref.against_malaria + updateData.charity_pref.long_term == 100;
+
+    // Check if any keys have been added
+    return 
+      (mapDiff.addedKeys().size() == 0) &&
+      (mapDiff.removedKeys().size() == 0) &&
+      (mapDiff.changedKeys().hasOnly(allowedFieldChanges)) &&
+      isRoundupConfigValid &&
+      isGivingPrefValid &&
+      isCharityPrefValid;
+  }
+
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read: if isUser(request.auth, uid);
+      allow update: if 
+        isUser(request.auth, uid) &&
+        'resource' in request.keys() &&
+        isUserUpdateValid(request.resource.data, resource.data);
+    }
+    match /charities/{charityId} {
+      allow read: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if true
+    }
+  }
+}
