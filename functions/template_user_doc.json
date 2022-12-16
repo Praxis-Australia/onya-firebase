@@ -23,5 +23,7 @@
         "transactions":[],
         "uid":null,
         "userCreated":null
-    }
+    },
+    "firstName": "",
+    "lastName": ""
 }
