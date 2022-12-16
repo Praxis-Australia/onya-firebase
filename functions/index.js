@@ -2,6 +2,9 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { URLSearchParams } = require('url');
 const fetch = require('node-fetch');
+const fs = require('fs');
+
+let templateUserDoc = JSON.parse(fs.readFileSync('template_user_doc.json'));
 
 admin.initializeApp();
 
@@ -15,7 +18,7 @@ admin.initializeApp();
 
 const getBasiqToken = async () => {
     const basiqDoc = await admin.firestore().collection('env').doc('basiqToken').get();
-    
+
     try {
         if (basiqDoc.exists) {
             const basiqDocData = basiqDoc.data();
@@ -25,7 +28,7 @@ const getBasiqToken = async () => {
             } else {
                 return await refreshBasiqToken();
             }
-        } else {  
+        } else {
             return await refreshBasiqToken();
         }
     } catch (e) {
@@ -60,33 +63,28 @@ const refreshBasiqToken = async () => {
     return json.access_token;
 }
 
+const createAuthLink = async (basiqUid) => {
+    const url = `https://au-api.basiq.io/users/${basiqUid}/auth_link`;
+    const options = {
+        method: 'POST',
+        headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+            authorization: `Bearer ${await getBasiqToken()}`
+        }
+    };
+
+    const res = await fetch(url, options);
+    const json = await res.json();
+
+    return json.links.public;
+}
+
 const createUser = async (uid, phoneNumber) => {
     try {
-        const token = await getBasiqToken();
-        functions.logger.log(token);
-
-        const options = {
-            method: 'POST',
-            headers: {
-                accept: 'application/json',
-                'content-type': 'application/json',
-                authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                mobile: phoneNumber,
-            })
-        };
-          
-        const url = 'https://au-api.basiq.io/users';
-        const res = await fetch(url, options);
-        const json = await res.json();
-        functions.logger.log(json);
-        
         const writeResult = await admin.firestore().collection('users').doc(uid).set({
-            basiq: {
-                id: json.id,
-            },
-            charitySelection: {},
+            ...templateUserDoc,
+            uid: uid,
             userCreated: admin.database.ServerValue.TIMESTAMP,
         })
 
@@ -100,6 +98,40 @@ const createUser = async (uid, phoneNumber) => {
 exports.createUser = functions.auth.user().beforeCreate(async (user, context) => {
     const { uid, phoneNumber } = user;
     return createUser(uid, phoneNumber);
+})
+
+exports.createUserBasiq = functions.auth.user().onCreate(async user => {
+    const { uid, phoneNumber } = user;
+
+    try {
+        const options = {
+            method: 'POST',
+            headers: {
+                accept: 'application/json',
+                'content-type': 'application/json',
+                authorization: `Bearer ${await getBasiqToken()}`
+            },
+            body: JSON.stringify({
+                mobile: phoneNumber,
+            })
+        };
+    
+        const url = 'https://au-api.basiq.io/users';
+        const res = await fetch(url, options);
+        const json = await res.json();
+    
+        return await admin.firestore().collection('users').doc(uid).update({
+            basiq: {
+                "accountNames": [],
+                "availableAccounts": [],
+                "connectionIds": [],
+                "uid": json.id,
+                "consentLink": await createAuthLink(json.id)
+            },
+        });
+    } catch (err) {
+        functions.logger.error(`Error updating user ${uid} with Basiq details`, err)
+    }
 })
 
 // exports.
