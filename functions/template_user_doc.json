@@ -20,10 +20,10 @@
         "statistics":{
             "total":0
         },
-        "transactions":[],
         "uid":null,
         "userCreated":null
     },
+    "transactions":[],
     "firstName": "",
     "lastName": ""
 }
