@@ -19,11 +19,11 @@
         },
         "statistics":{
             "total":0
-        },
-        "uid":null,
-        "userCreated":null
+        }
     },
     "transactions":[],
     "firstName": "",
-    "lastName": ""
+    "lastName": "",
+    "isRegComplete": false,
+    "userCreated": null
 }

@@ -8,14 +8,6 @@ let templateUserDoc = JSON.parse(fs.readFileSync('template_user_doc.json'));
 
 admin.initializeApp();
 
-// // Create and deploy your first functions
-// // https://firebase.google.com/docs/functions/get-started
-//
-// exports.helloWorld = functions.https.onRequest((request, response) => {
-//   functions.logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
-
 const getBasiqToken = async () => {
     const basiqDoc = await admin.firestore().collection('env').doc('basiqToken').get();
 
@@ -80,7 +72,7 @@ const createAuthLink = async (basiqUid) => {
     return json.links.public;
 }
 
-const createUser = async (uid, phoneNumber) => {
+const createUser = async (uid) => {
     try {
         const writeResult = await admin.firestore().collection('users').doc(uid).set({
             ...templateUserDoc,
@@ -96,8 +88,8 @@ const createUser = async (uid, phoneNumber) => {
 }
 
 exports.createUser = functions.auth.user().beforeCreate(async (user, context) => {
-    const { uid, phoneNumber } = user;
-    return createUser(uid, phoneNumber);
+    const { uid } = user;
+    return createUser(uid);
 })
 
 exports.createUserBasiq = functions.auth.user().onCreate(async user => {
