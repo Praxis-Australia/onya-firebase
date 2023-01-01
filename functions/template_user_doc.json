@@ -1,8 +1,6 @@
 {
     "basiq":{
-        "accountNames":[],
-        "availableAccounts":[],
-        "connectionIds":[]
+        "configStatus":"NOT_CONFIGURED"
     },
     "charitySelection":{},
     "roundup":{
@@ -22,8 +20,7 @@
         }
     },
     "transactions":[],
-    "firstName": "",
-    "lastName": "",
-    "isRegComplete": false,
+    "firstName": null,
+    "lastName": null,
     "userCreated": null
 }
