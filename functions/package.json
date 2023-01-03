@@ -14,11 +14,10 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "api": "^5.0.3",
+    "@types/node-fetch": "^2.6.2",
     "firebase-admin": "^10.0.2",
     "firebase-functions": "^3.18.0",
-    "node-fetch": "2.6.1",
-    "url": "^0.11.0"
+    "node-fetch": "2.6.1"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.47.1",
