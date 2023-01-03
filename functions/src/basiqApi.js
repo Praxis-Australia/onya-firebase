@@ -123,7 +123,7 @@ const getConnectionIds = async (basiqUid) => {
 
 }
 
-const getAccountNames = async (basiqUid) => {
+const getAccounts = async (basiqUid) => {
     const url = `https://au-api.basiq.io/users/${basiqUid}/accounts`;
     const options = {
         method: 'GET', 
@@ -137,7 +137,18 @@ const getAccountNames = async (basiqUid) => {
 
     if (res.status == 200) {
         const json = await res.json();
-        return json.data.map(account => account["name"]);
+        // turn json.data into object literal with id as key
+        const accounts = json.data.reduce((acc, account) => {
+            if (account["status"] == "available") {
+                acc[account["id"]] = {
+                    name: account["name"],
+                    institution: account["institution"],
+                    accountNumber: account["accountNo"],
+                };
+            }
+            return acc;
+        }, {});
+        return accounts;
     } else {
         return "There was an error fetching account names";
     }
@@ -151,10 +162,10 @@ const refreshUserBasicInfo = async (uid) => {
         const userDocData = userDoc.data();
         if (userDocData.basiq.configStatus != "NOT_CONFIGURED") {
             const connectionIds = await getConnectionIds(userDocData.basiq.uid);
-            const accountNames = await getAccountNames(userDocData.basiq.uid);
+            const accounts = await getAccounts(userDocData.basiq.uid);
             await admin.firestore().collection('users').doc(uid).update({
                 "basiq.connectionIds": connectionIds,
-                "basiq.availableAccounts": accountNames,
+                "basiq.availableAccounts": accounts,
                 "basiq.configStatus": (connectionIds != []) ? "COMPLETE" : "BASIQ_USER_CREATED"
             });
         }
