@@ -4,11 +4,12 @@
     },
     "charitySelection":{},
     "roundup":{
+        "isConfigured": false,
         "config":{
             "debitAt":10,
             "debitAccountId":null,
             "enabled":false,
-            "roundTo":1,
+            "roundTo": null,
             "watchedAccountId": null
         },
         "nextDebit":{
