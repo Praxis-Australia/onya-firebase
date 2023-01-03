@@ -6,10 +6,10 @@
     "roundup":{
         "config":{
             "debitAt":10,
-            "debitConnectionId":null,
+            "debitAccountId":null,
             "enabled":false,
             "roundTo":1,
-            "transactionConnectionId":null
+            "watchedAccountId": null
         },
         "nextDebit":{
             "accAmount":0,

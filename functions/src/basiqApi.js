@@ -137,17 +137,15 @@ const getAccounts = async (basiqUid) => {
 
     if (res.status == 200) {
         const json = await res.json();
-        // turn json.data into object literal with id as key
-        const accounts = json.data.reduce((acc, account) => {
-            if (account["status"] == "available") {
-                acc[account["id"]] = {
-                    name: account["name"],
-                    institution: account["institution"],
-                    accountNumber: account["accountNo"],
-                };
-            }
-            return acc;
-        }, {});
+        const accounts = json.data
+            .filter(account => account["status"] == "available")
+            .map(account => ({
+                id: account["id"],
+                name: account["name"],
+                institution: account["institution"],
+                accountNumber: account["accountNo"],
+            }))
+
         return accounts;
     } else {
         return "There was an error fetching account names";
