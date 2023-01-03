@@ -3,6 +3,7 @@
 **/*.js.map
 
 # Except the ESLint config file
+!/src/*.js
 !.eslintrc.js
 
 # TypeScript v1 declaration files
