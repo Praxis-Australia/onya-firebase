@@ -14,11 +14,13 @@
     "node": "16"
   },
   "main": "lib/index.js",
+  "type": "module",
   "dependencies": {
+    "@api/basiq-core": "file:.api/apis/basiq-core",
+    "@api/basiq-data": "file:.api/apis/basiq-data",
     "@types/node-fetch": "^2.6.2",
     "firebase-admin": "^10.0.2",
-    "firebase-functions": "^3.18.0",
-    "node-fetch": "2.6.1"
+    "firebase-functions": "^3.18.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.47.1",
