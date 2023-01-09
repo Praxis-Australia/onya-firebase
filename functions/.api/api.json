@@ -12,12 +12,6 @@
       "source": "@basiq/v3.0#ebuw22lbemfwzm",
       "integrity": "sha512-H4yy0Azz2Ubn6CKNyyyaRBjdgivU4jw7cG7/w6ZnzVaBU7XZoq24n7+7TAaUtcyp/+oCgTngIW2YuDkvLFhvvw==",
       "installerVersion": "5.0.5"
-    },
-    {
-      "identifier": "basiq",
-      "source": "@basiq/v3.0#ebuw22lbemfwzm",
-      "integrity": "sha512-H4yy0Azz2Ubn6CKNyyyaRBjdgivU4jw7cG7/w6ZnzVaBU7XZoq24n7+7TAaUtcyp/+oCgTngIW2YuDkvLFhvvw==",
-      "installerVersion": "5.0.5"
     }
   ]
 }
