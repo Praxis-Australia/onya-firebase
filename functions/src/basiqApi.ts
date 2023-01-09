@@ -12,11 +12,13 @@ const refreshBasiqToken = async (): Promise<string> => {
     throw new https.HttpsError('not-found', 'Basiq API key not set in env');
   }
 
-  basiqCore.auth(process.env.BASIQ_API_KEY);
-  const res = await basiqCore.postToken({
+  basiqCore.auth(`Basic ${process.env.BASIQ_API_KEY}`);
+  const res = await basiqCore.postToken({scope: 'SERVER_ACCESS'}, {
+    accept: 'application/json',
     'basiq-version': '3.0'
   })
     .catch(err => {
+      console.error(err);
       throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
     });
 
@@ -25,14 +27,19 @@ const refreshBasiqToken = async (): Promise<string> => {
   }
 
   const { access_token, expires_in } = res.data;
+  const expires_at  = new Date().getTime() + expires_in * 1000
+
+  logger.info(`New token fetched: ${access_token} expiring at ${expires_at}`)
 
   await basiqTokenDocRef
     .withConverter(basiqTokenConverter)
     .set({
       access_token,
-      expires_at: new Date().getTime() + expires_in * 1000
-    })
+      expires_at
+    } as BasiqToken)
+    .then(res => logger.log(res.writeTime))
     .catch(e => {
+      logger.error(e);
       throw new https.HttpsError('internal', 'Error writing Basiq token to Firestore', e);
     })
 
@@ -56,7 +63,8 @@ const getBasiqToken = async () => {
       throw new Error("Token doc not found");
     }
   } catch (err) {
-    logger.info("Issue fetching existing Basiq token from doc", err)
+    logger.info("Issue fetching existing Basiq token from doc")
+    logger.info(err)
     return await refreshBasiqToken();
   }
 };
@@ -156,7 +164,7 @@ export const getAuthLink = async (basiqUid: string): Promise<string> => {
 }
 
 export const initBasiqUser = 
-  async (uid: string, phoneNumber: string, firstName?: string, lastName?: string, email?: string, allowOverwrite=false): Promise<void> => {
+  async (uid: string, mobile: string, firstName?: string, lastName?: string, email?: string, allowOverwrite=false): Promise<void> => {
     const userSnapshot = await userCollectionRef.doc(uid).get()
       .catch(err => {
         throw new https.HttpsError('unavailable', 'Network error connecting with Firestore', err);
@@ -173,15 +181,17 @@ export const initBasiqUser =
       throw new https.HttpsError('already-exists', 'A Basiq user has already been created for this user');
     }
 
+    basiqCore.auth("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXJ0bmVyaWQiOiJkMTRjYzU5Zi0yM2UzLTQ4NjEtOGJiMi1mZWMwZDcxMWMxMjkiLCJhcHBsaWNhdGlvbmlkIjoiNjMxMjNmMWMtZjYxMy00ZjMyLWFiYzUtYzBhZDdhYTY2YmU1Iiwic2NvcGUiOiJTRVJWRVJfQUNDRVNTIiwic2FuZGJveF9hY2NvdW50Ijp0cnVlLCJjb25uZWN0X3N0YXRlbWVudHMiOmZhbHNlLCJlbnJpY2giOiJkaXNhYmxlZCIsImVucmljaF9lbnRpdHkiOmZhbHNlLCJlbnJpY2hfbG9jYXRpb24iOmZhbHNlLCJlbnJpY2hfY2F0ZWdvcnkiOmZhbHNlLCJhZmZvcmRhYmlsaXR5Ijoic2FuZGJveCIsImluY29tZSI6InNhbmRib3giLCJleHBlbnNlcyI6InNhbmRib3giLCJleHAiOjE2NzMyNTU0MzQsImlhdCI6MTY3MzI1MTgzNCwidmVyc2lvbiI6IjMuMCIsImRlbmllZF9wZXJtaXNzaW9ucyI6W119.0VW3vJIP2dBCHtnwnPPvH6dnqM42BWBRZnv6RUfHaTk")
     const res = await basiqCore.createUser({
-      phoneNumber,
+      mobile,
       ...email ? {email} : {},
       ...firstName ? {firstName} : {},
       ...lastName ? {lastName} : {}
     })
-      .catch(err => {
-        throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
-      });
+    .catch(err => {
+      console.error(err);
+      throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
+    });
     
     if (res.status === 201) {
       // Ideally we'd use .update() so we can only update field as needed
