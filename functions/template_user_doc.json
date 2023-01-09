@@ -3,6 +3,8 @@
         "configStatus":"NOT_CONFIGURED"
     },
     "charitySelection":{},
+    "firstName": null,
+    "lastName": null,
     "roundup":{
         "config":{
             "debitAt":10,
@@ -20,7 +22,6 @@
         }
     },
     "transactions":[],
-    "firstName": null,
-    "lastName": null,
+    "uid": "",
     "userCreated": null
 }
