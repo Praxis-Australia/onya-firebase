@@ -9,7 +9,7 @@ export interface User {
   roundup: Roundup,
   transactions: Array<DocumentReference>,
   uid: string,
-  userCreated: Date
+  userCreated: Timestamp
 }
 
 export function isUser(obj: any): obj is User {
@@ -22,7 +22,7 @@ export function isUser(obj: any): obj is User {
             Array.isArray(obj.transactions) &&
             obj.transactions.every((item: any) => item instanceof DocumentReference) &&
             typeof obj.uid === 'string' &&
-            obj.userCreated instanceof Date);
+            obj.userCreated instanceof Timestamp);
   } catch (_) {
     return false;
   }
