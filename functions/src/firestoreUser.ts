@@ -1,16 +1,7 @@
-import { firestore } from "firebase-admin";
 import { https } from "firebase-functions";
 import { userCollectionRef, userDocConverter } from "./utils/firestore";
-import fs = require('fs');
-import { User } from "./utils/types/User";
-
-let templateUserDoc: User;
 
 export const createUser = async (uid: string): Promise<void> => {
-  if (!templateUserDoc) {
-    templateUserDoc = JSON.parse(fs.readFileSync('./templateUserDoc.json', 'utf8'));
-  }
-
   const docRef = userCollectionRef.doc(uid);
   const docSnapshot = await docRef
     .withConverter(userDocConverter)
@@ -24,9 +15,31 @@ export const createUser = async (uid: string): Promise<void> => {
   }
 
   await docRef.withConverter(userDocConverter).set({
-    ...templateUserDoc,
+    basiq:{
+      configStatus: "NOT_CONFIGURED"
+    },
+    charitySelection : new Map<string, number>(),
+    firstName: null,
+    lastName: null,
+    roundup:{
+        config:{
+            debitAt:10,
+            debitAccountId:null,
+            isEnabled:false,
+            roundTo: null,
+            watchedAccountId: null
+        },
+        nextDebit:{
+            accAmount:0,
+            lastChecked:null
+        },
+        statistics:{
+            total:0
+        }
+    },
+    transactions:[],
     uid: uid,
-    userCreated: firestore.Timestamp.now()
+    userCreated: new Date()
   })
     .catch((err) => {
       throw new https.HttpsError('internal', 'Error writing user to Firestore', err);

@@ -1,4 +1,4 @@
-import { DocumentReference, Timestamp } from 'firebase-admin/firestore'
+import { DocumentReference } from 'firebase-admin/firestore'
 import { BasiqConfig } from './Basiq'
 
 export interface User {
@@ -9,14 +9,14 @@ export interface User {
   roundup: Roundup,
   transactions: Array<DocumentReference>,
   uid: string,
-  userCreated: Timestamp
+  userCreated: Date
 }
 
 export interface Roundup {
   config: RoundupConfig,
   nextDebit: {
     accAmount: number,
-    lastChecked: Timestamp | null,
+    lastChecked: Date | null,
   }
   statistics: {
     total: number,

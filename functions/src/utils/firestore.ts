@@ -1,20 +1,23 @@
 import { firestore } from 'firebase-admin';
 import { https } from 'firebase-functions';
-import { BasiqToken } from './types/Basiq';
-import { Roundup, RoundupConfig, User } from './types/User';
+import { BasiqConfig, BasiqToken } from './types/Basiq';
+import { User } from './types/User';
 
 export const basiqTokenDocRef = firestore().collection('env').doc('basiqToken') as firestore.DocumentReference<BasiqToken>;
 
 export const basiqTokenConverter: firestore.FirestoreDataConverter<BasiqToken> = {
   toFirestore(basiqToken: BasiqToken): FirebaseFirestore.DocumentData {
-    return { ...basiqToken };
+    return basiqToken;
   },
   fromFirestore(snapshot: firestore.QueryDocumentSnapshot): BasiqToken {
     const data = snapshot.data();
-    if (!isBasiqToken(data)) {
+    if (!matchesBasiqToken(data)) {
       throw new https.HttpsError('failed-precondition', 'The document is not a valid BasiqToken');
     } else {
-      return { ...data };
+      return {
+        access_token: data.access_token,
+        expires_at: data.expires_at
+      };
     }
   }
 }
@@ -24,22 +27,48 @@ export const userCollectionRef = firestore().collection('users') as firestore.Co
 export const userDocConverter: firestore.FirestoreDataConverter<User> = {
   toFirestore(user: User): FirebaseFirestore.DocumentData {
     return { 
-      ...user
+      ...user,
+      charitySelection: Object.fromEntries(user.charitySelection),
+      roundup: {
+        ...user.roundup,
+        nextDebit: {
+          accAmount: user.roundup.nextDebit.accAmount,
+          lastChecked: (user.roundup.nextDebit.lastChecked) ? firestore.Timestamp.fromDate(user.roundup.nextDebit.lastChecked) : null
+        }
+      },
+      userCreated: firestore.Timestamp.fromDate(user.userCreated)
     };
   },
   fromFirestore(snapshot: firestore.QueryDocumentSnapshot): User {  
     const data = snapshot.data();
-    if (!isUser(data)) {
+    if (!matchesUser(data)) {
       throw new https.HttpsError('failed-precondition', 'The document is not a valid User');
     } else {
-      return { ...data };
+      return {
+        basiq: data.basiq as BasiqConfig,
+        charitySelection: new Map<string, number>(Object.entries(data.charitySelection)),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        roundup: {
+          config: data.roundup.config,
+          nextDebit: {
+            accAmount: data.roundup.nextDebit.accAmount,
+            lastChecked: (data.roundup.nextDebit.lastChecked) ? data.roundup.nextDebit.lastChecked.toDate() : null
+          },
+          statistics: {
+            total: data.roundup.statistics.total
+          }
+        },
+        transactions: data.transactions,
+        uid: data.uid,
+        userCreated: data.userCreated.toDate()
+      };
     }
   }
 }
 
 // # Checks to validate that the Firebase docs can be typed
-
-export function isBasiqToken(obj: any): obj is BasiqToken {
+export function matchesBasiqToken(obj: any): boolean {
   try {
     return (typeof obj.access_token === 'string' && 
             typeof obj.expires_at === 'number')
@@ -48,13 +77,13 @@ export function isBasiqToken(obj: any): obj is BasiqToken {
   }
 }
 
-function isUser(obj: any): obj is User {
+function matchesUser(obj: any): boolean {
   try {
-    return (isBasiqConfig(obj.basiq) &&
+    return (matchesBasiqConfig(obj.basiq) &&
             Object.values(obj.charitySelection).every(value => typeof value === 'number') &&
             (obj.firstName === null || typeof obj.firstName === 'string') &&
             (obj.lastName === null || typeof obj.lastName === 'string') &&
-            isRoundup(obj.roundup) &&
+            matchesRoundup(obj.roundup) &&
             Array.isArray(obj.transactions) &&
             obj.transactions.every((item: any) => item instanceof firestore.DocumentReference) &&
             typeof obj.uid === 'string' &&
@@ -64,9 +93,9 @@ function isUser(obj: any): obj is User {
   }
 }
 
-function isRoundup(obj: any): obj is Roundup {
+function matchesRoundup(obj: any): boolean {
   try {
-    return (isRoundupConfig(obj.config) &&
+    return (matchesRoundupConfig(obj.config) &&
             typeof obj.nextDebit.accAmount === 'number' &&
             (obj.nextDebit.lastChecked === null || obj.nextDebit.lastChecked instanceof firestore.Timestamp) &&
             typeof obj.statistics.total === 'number');
@@ -75,44 +104,76 @@ function isRoundup(obj: any): obj is Roundup {
   }
 }
 
-function isRoundupConfig(obj: any): obj is RoundupConfig {
+function matchesRoundupConfigEnabled(obj: any): boolean {
+  try {
+    return (obj.isEnabled &&
+            typeof obj.debitAccountId === 'string' &&
+            typeof obj.debitAt === 'number' &&
+            typeof obj.roundTo === 'number' &&
+            typeof obj.watchedAccountId === 'string')
+  } catch (_) {
+    return false;
+  }
+}
+
+function matchesRoundupConfig(obj: any): boolean {
   try {
     return (!obj.isEnabled ||
-            (obj.isEnabled &&
-              typeof obj.debitAccountId === 'string' &&
-              typeof obj.debitAt === 'number' &&
-              typeof obj.roundTo === 'number' &&
-              typeof obj.watchedAccountId === 'string'));
+            matchesRoundupConfigEnabled(obj));
   } catch (_) {
     return false;
   }
 }
 
-export function isBasiqConfig(obj: any) {
+function matchesBasiqConfigNotConfigured(obj: any): boolean {
   try {
-    return (obj.configStatus === "NOT_CONFIGURED" ||
-            (obj.configStatus === "BASIQ_USER_CREATED" &&
-              typeof obj.uid === 'string' &&
-              typeof obj.clientToken.access_token === 'string' &&
-              typeof obj.clientToken.expires_at === 'number') ||
-            (obj.configStatus === "COMPLETE" &&
-              Array.isArray(obj.availableAccounts) &&
-              obj.availableAccounts.every(isBasiqAccount) &&
-              Array.isArray(obj.connectionIds) &&
-              obj.connectionIds.every((id: any) => typeof id === 'string') &&
-              typeof obj.uid === 'string' &&
-              typeof obj.clientToken.access_token === 'string' &&
-              typeof obj.clientToken.expires_at === 'number'))
+    return (obj.configStatus === "NOT_CONFIGURED")
   } catch (_) {
     return false;
   }
 }
 
-export function isBasiqAccount(obj: any) {
+function matchesBasiqConfigUserCreated(obj: any): boolean {
+  try {
+    return (obj.configStatus === "BASIQ_USER_CREATED" &&
+            typeof obj.uid === 'string' &&
+            typeof obj.clientToken.access_token === 'string' &&
+            typeof obj.clientToken.expires_at === 'number') 
+  } catch (_) {
+    return false;
+  }
+}
+
+function matchesBasiqConfigComplete(obj: any): boolean {
+  try {
+    return (obj.configStatus === "COMPLETE" &&
+            Array.isArray(obj.availableAccounts) &&
+            obj.availableAccounts.every(matchesBasiqAccount) &&
+            Array.isArray(obj.connectionIds) &&
+            obj.connectionIds.every((id: any) => typeof id === 'string') &&
+            typeof obj.uid === 'string' &&
+            typeof obj.clientToken.access_token === 'string' &&
+            typeof obj.clientToken.expires_at === 'number')
+  } catch (_) {
+    return false;
+  }
+}
+
+function matchesBasiqConfig(obj: any): boolean {
+  try {
+    return (matchesBasiqConfigNotConfigured(obj) ||
+            matchesBasiqConfigUserCreated(obj) ||
+            matchesBasiqConfigComplete(obj))
+  } catch (_) {
+    return false;
+  }
+}
+
+function matchesBasiqAccount(obj: any): boolean {
   try {
     return (typeof obj.accountNumber === 'string' &&
-    typeof obj.id === 'string' &&
-    typeof obj.institution === 'string' &&
+            typeof obj.id === 'string' &&
+            typeof obj.institution === 'string' &&
             typeof obj.name === 'string')
   } catch (_) {
     return false;

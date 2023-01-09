@@ -5,13 +5,14 @@ initializeApp();
 import * as basiqApi from './basiqApi';
 import { createUser as createFirestoreUser } from './firestoreUser';
 
+const regionFunctions = functions.region('australia-southeast1')
 
-export const createUser = functions.auth.user().beforeCreate(async (user) => {
+export const createUser = regionFunctions.auth.user().beforeCreate(async (user) => {
   const { uid } = user;
   await createFirestoreUser(uid);
 })
 
-export const createBasiqUser = functions.https.onCall(async (data, context) => {
+export const createBasiqUser = regionFunctions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
   }
@@ -29,7 +30,7 @@ export const createBasiqUser = functions.https.onCall(async (data, context) => {
   await basiqApi.initBasiqUser(uid, phone_number, firstName, lastName);
 })
 
-export const refreshUserBasiqInfo = functions.https.onCall(async (_, context) => {
+export const refreshUserBasiqInfo = regionFunctions.https.onCall(async (_, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
   }
@@ -38,7 +39,7 @@ export const refreshUserBasiqInfo = functions.https.onCall(async (_, context) =>
   await basiqApi.refreshUserBasiqInfo(uid);
 })
 
-export const getClientToken = functions.https.onCall(async (_, context) => {
+export const getClientToken = regionFunctions.https.onCall(async (_, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
   }

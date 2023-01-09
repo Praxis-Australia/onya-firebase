@@ -205,6 +205,7 @@ export const getClientToken = async (uid: string): Promise<string> => {
     await userRef
       .withConverter(userDocConverter)
       .set({
+        ...user,
         basiq: {
           ...user.basiq,
           clientToken: {
@@ -212,7 +213,7 @@ export const getClientToken = async (uid: string): Promise<string> => {
             expires_at
           }
         }
-      }, { merge: true })
+      })
 
     return access_token;
   }
@@ -309,20 +310,22 @@ export const refreshUserBasiqInfo = async (uid: string): Promise<void> => {
       uid: user.basiq.uid,
       connectionIds,
       availableAccounts,
+      clientToken: user.basiq.clientToken
     } as BasiqConfigComplete
   } else {
     updatedBasiqConfig = {
       configStatus: "BASIQ_USER_CREATED",
       uid: user.basiq.uid,
+      clientToken: user.basiq.clientToken
     } as BasiqConfigUserCreated
   }
-  console.log(updatedBasiqConfig);
 
   await userCollectionRef.doc(uid)
     .withConverter(userDocConverter)
-    .set(
-      { basiq: updatedBasiqConfig }, 
-      { merge: true })
+    .set({
+      ...user,
+      basiq: updatedBasiqConfig
+    })
     .catch((err) => {
       throw new https.HttpsError('internal', 'Error writing user to Firestore', err);
     });
