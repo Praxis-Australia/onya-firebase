@@ -1,7 +1,7 @@
 import { firestore } from 'firebase-admin';
 import { https } from 'firebase-functions';
-import { BasiqToken, isBasiqToken } from './types/basiq';
-import { User, isUser } from './types/user';
+import { BasiqToken, isBasiqToken } from './types/Basiq';
+import { User, isUser } from './types/User';
 
 export const basiqTokenDocRef = firestore().collection('env').doc('basiqToken') as firestore.DocumentReference<BasiqToken>;
 
@@ -30,7 +30,7 @@ export const userDocConverter: firestore.FirestoreDataConverter<User> = {
   fromFirestore(snapshot: firestore.QueryDocumentSnapshot): User {  
     const data = snapshot.data();
     if (!isUser(data)) {
-      throw new https.HttpsError('failed-precondition', 'The document is not a valid BasiqToken');
+      throw new https.HttpsError('failed-precondition', 'The document is not a valid User');
     } else {
       return { ...data };
     }
