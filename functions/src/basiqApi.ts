@@ -1,7 +1,6 @@
 import { logger, https } from 'firebase-functions';
 import basiqCore from '@api/basiq-core';
 import basiqData from '@api/basiq-data';
-
 import { basiqTokenConverter, basiqTokenDocRef, userCollectionRef, userDocConverter } from './utils/firestore';
 import type { BasiqAccount, BasiqConfig, BasiqConfigComplete, BasiqConfigUserCreated, BasiqToken } from './utils/types/basiq';
 
@@ -12,21 +11,56 @@ const refreshBasiqToken = async (): Promise<string> => {
     throw new https.HttpsError('not-found', 'Basiq API key not set in env');
   }
 
-  basiqCore.auth(`Basic ${process.env.BASIQ_API_KEY}`);
-  const res = await basiqCore.postToken({scope: 'SERVER_ACCESS'}, {
-    accept: 'application/json',
-    'basiq-version': '3.0'
-  })
+  // BUG: api@5 doesn't work with .auth for some reason
+  // So we're using just a node-fetch as a work-around
+  const url = 'https://au-api.basiq.io/token';
+  const encodedParams = new URLSearchParams();
+  encodedParams.set('scope', 'SERVER_ACCESS');
+  const options = {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'basiq-version': '3.0',
+      'content-type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${process.env.BASIQ_API_KEY}`
+    },
+    body: encodedParams
+  };
+  
+  const res = await fetch(url, options)
     .catch(err => {
-      console.error(err);
-      throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
+      throw new https.HttpsError("unknown", "Error while calling Basiq API", err.message)
     });
+  const data = await res.json()
+    .catch(err => {
+      throw new https.HttpsError("internal", "Error converting body to JSON", err.message)
+    })
 
-  if (res.status != 200) {
-    throw new https.HttpsError('unavailable', 'Error with Basiq API', res.data);
+  if (res.status !== 200) {
+    throw new https.HttpsError("unknown", "Error response from Basiq API", {
+      status: res.status,
+      body: data
+    })
   }
+  // basiqCore.auth(`Basic ${process.env.BASIQ_API_KEY}`);
+  // const data = await basiqCore.postToken({scope: 'SERVER_ACCESS'}, {
+  //   // accept: 'application/json',
+  //   'basiq-version': '3.0'
+  // })
+  //   .then(res => res.data)
+  //   .catch(err => {
+  //     console.error(err);
+  //     if (err.name === 'FetchError') {
+  //       throw new https.HttpsError("unknown", "Error response from Basiq API", err)
+  //     }
+  //     throw new https.HttpsError("unknown", "Error while calling Basiq API", err.message)
+  //   }) as PostTokenResponse200;
 
-  const { access_token, expires_in } = res.data;
+  const { access_token, expires_in } = data as {
+    access_token: string,
+    expires_in: number
+  };
+
   const expires_at  = new Date().getTime() + expires_in * 1000
 
   logger.info(`New token fetched: ${access_token} expiring at ${expires_at}`)
@@ -181,17 +215,21 @@ export const initBasiqUser =
       throw new https.HttpsError('already-exists', 'A Basiq user has already been created for this user');
     }
 
-    basiqCore.auth("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXJ0bmVyaWQiOiJkMTRjYzU5Zi0yM2UzLTQ4NjEtOGJiMi1mZWMwZDcxMWMxMjkiLCJhcHBsaWNhdGlvbmlkIjoiNjMxMjNmMWMtZjYxMy00ZjMyLWFiYzUtYzBhZDdhYTY2YmU1Iiwic2NvcGUiOiJTRVJWRVJfQUNDRVNTIiwic2FuZGJveF9hY2NvdW50Ijp0cnVlLCJjb25uZWN0X3N0YXRlbWVudHMiOmZhbHNlLCJlbnJpY2giOiJkaXNhYmxlZCIsImVucmljaF9lbnRpdHkiOmZhbHNlLCJlbnJpY2hfbG9jYXRpb24iOmZhbHNlLCJlbnJpY2hfY2F0ZWdvcnkiOmZhbHNlLCJhZmZvcmRhYmlsaXR5Ijoic2FuZGJveCIsImluY29tZSI6InNhbmRib3giLCJleHBlbnNlcyI6InNhbmRib3giLCJleHAiOjE2NzMyNTU0MzQsImlhdCI6MTY3MzI1MTgzNCwidmVyc2lvbiI6IjMuMCIsImRlbmllZF9wZXJtaXNzaW9ucyI6W119.0VW3vJIP2dBCHtnwnPPvH6dnqM42BWBRZnv6RUfHaTk")
+    basiqCore.auth(await getBasiqToken())
     const res = await basiqCore.createUser({
       mobile,
       ...email ? {email} : {},
       ...firstName ? {firstName} : {},
       ...lastName ? {lastName} : {}
     })
-    .catch(err => {
-      console.error(err);
-      throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
-    });
+      .then(res => {
+        console.log(res.data)
+        return res;
+      })
+      .catch(err => {
+        console.error(err);
+        throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
+      });
     
     if (res.status === 201) {
       // Ideally we'd use .update() so we can only update field as needed

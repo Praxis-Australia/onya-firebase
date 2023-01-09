@@ -17,7 +17,6 @@
   "dependencies": {
     "@api/basiq-core": "file:.api/apis/basiq-core",
     "@api/basiq-data": "file:.api/apis/basiq-data",
-    "@types/node-fetch": "^2.6.2",
     "firebase-admin": "^10.0.2",
     "firebase-functions": "^4.1.1"
   },
