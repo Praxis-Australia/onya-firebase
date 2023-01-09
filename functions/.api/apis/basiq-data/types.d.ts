@@ -1,6 +1,5 @@
 import type { FromSchema } from 'json-schema-to-ts';
 import * as schemas from './schemas';
-
 export type DeleteConnectionMetadataParam = FromSchema<typeof schemas.DeleteConnection.metadata>;
 export type DeleteConnectionResponse400 = FromSchema<
   (typeof schemas.DeleteConnection.response)['400']

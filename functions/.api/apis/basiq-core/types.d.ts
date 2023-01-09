@@ -1,6 +1,5 @@
 import type { FromSchema } from 'json-schema-to-ts';
 import * as schemas from './schemas';
-
 export type CreateUserBodyParam = FromSchema<typeof schemas.CreateUser.body>;
 export type CreateUserResponse201 = FromSchema<(typeof schemas.CreateUser.response)['201']>;
 export type CreateUserResponse400 = FromSchema<(typeof schemas.CreateUser.response)['400']>;

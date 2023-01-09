@@ -2,17 +2,10 @@ import type * as types from './types';
 import type { ConfigOptions, FetchResponse } from 'api/dist/core';
 import Oas from 'oas';
 import APICore from 'api/dist/core';
-import definition from './openapi.json';
-
-class SDK {
+declare class SDK {
   spec: Oas;
   core: APICore;
-
-  constructor() {
-    this.spec = Oas.init(definition);
-    this.core = new APICore(this.spec, 'basiq/3.0.0 (api/5.0.5)');
-  }
-
+  constructor();
   /**
    * Optionally configure various options that the SDK allows.
    *
@@ -20,10 +13,7 @@ class SDK {
    * @param config.timeout Override the default `fetch` request timeout of 30 seconds. This number
    * should be represented in milliseconds.
    */
-  config(config: ConfigOptions) {
-    this.core.setConfig(config);
-  }
-
+  config(config: ConfigOptions): void;
   /**
    * If the API you're using requires authentication you can supply the required credentials
    * through this method and the library will magically determine how they should be used
@@ -45,11 +35,7 @@ class SDK {
    * @see {@link https://spec.openapis.org/oas/v3.1.0#fixed-fields-22}
    * @param values Your auth credentials for the API; can specify up to two strings or numbers.
    */
-  auth(...values: string[] | number[]) {
-    this.core.setAuth(...values);
-    return this;
-  }
-
+  auth(...values: string[] | number[]): this;
   /**
    * If the API you're using offers alternate server URLs, and server variables, you can tell
    * the SDK which one to use with this method. To use it you can supply either one of the
@@ -69,10 +55,7 @@ class SDK {
    * @param url Server URL
    * @param variables An object of variables to replace into the server URL.
    */
-  server(url: string, variables = {}) {
-    this.core.setServer(url, variables);
-  }
-
+  server(url: string, variables?: {}): void;
   /**
    * List all accounts belonging to a user
    *
@@ -86,10 +69,7 @@ class SDK {
     | FetchResponse<403, types.GetAccountsResponse403>
     | FetchResponse<404, types.GetAccountsResponse404>
     | FetchResponse<500, types.GetAccountsResponse500>
-  > {
-    return this.core.fetch('/users/{userId}/accounts', 'get', metadata);
-  }
-
+  >;
   /**
    * Retrieve a specific account belonging to a user
    *
@@ -103,10 +83,7 @@ class SDK {
     | FetchResponse<403, types.GetAccountResponse403>
     | FetchResponse<404, types.GetAccountResponse404>
     | FetchResponse<500, types.GetAccountResponse500>
-  > {
-    return this.core.fetch('/users/{userId}/accounts/{accountId}', 'get', metadata);
-  }
-
+  >;
   /**
    * List all transactions belonging to a specified user
    *
@@ -120,10 +97,7 @@ class SDK {
     | FetchResponse<403, types.GetTransactionsResponse403>
     | FetchResponse<404, types.GetTransactionsResponse404>
     | FetchResponse<500, types.GetTransactionsResponse500>
-  > {
-    return this.core.fetch('/users/{userId}/transactions', 'get', metadata);
-  }
-
+  >;
   /**
    * Retrieve an existing transaction
    *
@@ -138,10 +112,7 @@ class SDK {
     | FetchResponse<404, types.GetTransactionResponse404>
     | FetchResponse<500, types.GetTransactionResponse500>
     | FetchResponse<503, types.GetTransactionResponse503>
-  > {
-    return this.core.fetch('/users/{userId}/transactions/{transactionId}', 'get', metadata);
-  }
-
+  >;
   /**
    * Returns a list of connections belonging to this user. Each entry in the array is a
    * separate object. If no data is returned, the resulting array will be empty.
@@ -157,10 +128,7 @@ class SDK {
     | FetchResponse<404, types.GetConnectionsResponse404>
     | FetchResponse<500, types.GetConnectionsResponse500>
     | FetchResponse<503, types.GetConnectionsResponse503>
-  > {
-    return this.core.fetch('/users/{userId}/connections', 'get', metadata);
-  }
-
+  >;
   /**
    * Use this to refresh all connections belonging to the specified user.
    *
@@ -174,10 +142,7 @@ class SDK {
     | FetchResponse<403, types.RefreshConnectionsResponse403>
     | FetchResponse<404, types.RefreshConnectionsResponse404>
     | FetchResponse<500, types.RefreshConnectionsResponse500>
-  > {
-    return this.core.fetch('/users/{userId}/connections/refresh', 'post', metadata);
-  }
-
+  >;
   /**
    * Use this to retrieve details of a specific connection. Note that due to security the
    * loginId, password, securityCode are never returned.
@@ -194,10 +159,7 @@ class SDK {
     | FetchResponse<404, types.GetConnectionResponse404>
     | FetchResponse<500, types.GetConnectionResponse500>
     | FetchResponse<503, types.GetConnectionResponse503>
-  > {
-    return this.core.fetch('/users/{userId}/connections/{connectionId}', 'get', metadata);
-  }
-
+  >;
   /**
    * Permanently deletes a connection. This does not include the existing account and
    * transaction data associated with it. This can not be undone.
@@ -212,10 +174,7 @@ class SDK {
     | FetchResponse<404, types.DeleteConnectionResponse404>
     | FetchResponse<500, types.DeleteConnectionResponse500>
     | FetchResponse<503, types.DeleteConnectionResponse503>
-  > {
-    return this.core.fetch('/users/{userId}/connections/{connectionId}', 'delete', metadata);
-  }
-
+  >;
   /**
    * Use this to refresh an existing connection. This will not return a new connection.
    * Instead will return a job resource which is resonsible for refreshing the connection and
@@ -232,10 +191,7 @@ class SDK {
     | FetchResponse<404, types.RefreshConnectionResponse404>
     | FetchResponse<500, types.RefreshConnectionResponse500>
     | FetchResponse<503, types.RefreshConnectionResponse503>
-  > {
-    return this.core.fetch('/users/{userId}/connections/{connectionId}/refresh', 'post', metadata);
-  }
-
+  >;
   /**
    * NOTE: This end point requires authentication.
    *
@@ -248,10 +204,7 @@ class SDK {
     | FetchResponse<400, types.GetConnectorsResponse400>
     | FetchResponse<401, types.GetConnectorsResponse401>
     | FetchResponse<500, types.GetConnectorsResponse500>
-  > {
-    return this.core.fetch('/connectors', 'get', metadata);
-  }
-
+  >;
   /**
    * NOTE: This end point requires authentication.
    *
@@ -265,85 +218,7 @@ class SDK {
     | FetchResponse<401, types.GetConnectorResponse401>
     | FetchResponse<404, types.GetConnectorResponse404>
     | FetchResponse<500, types.GetConnectorResponse500>
-  > {
-    return this.core.fetch('/connectors/{connectorId}/{method}', 'get', metadata);
-  }
+  >;
 }
-
-const createSDK = (() => {
-  return new SDK();
-})();
-export default createSDK;
-
-export type {
-  DeleteConnectionMetadataParam,
-  DeleteConnectionResponse400,
-  DeleteConnectionResponse403,
-  DeleteConnectionResponse404,
-  DeleteConnectionResponse500,
-  DeleteConnectionResponse503,
-  GetAccountMetadataParam,
-  GetAccountResponse200,
-  GetAccountResponse400,
-  GetAccountResponse403,
-  GetAccountResponse404,
-  GetAccountResponse500,
-  GetAccountsMetadataParam,
-  GetAccountsResponse200,
-  GetAccountsResponse400,
-  GetAccountsResponse403,
-  GetAccountsResponse404,
-  GetAccountsResponse500,
-  GetConnectionMetadataParam,
-  GetConnectionResponse200,
-  GetConnectionResponse400,
-  GetConnectionResponse401,
-  GetConnectionResponse403,
-  GetConnectionResponse404,
-  GetConnectionResponse500,
-  GetConnectionResponse503,
-  GetConnectionsMetadataParam,
-  GetConnectionsResponse200,
-  GetConnectionsResponse400,
-  GetConnectionsResponse403,
-  GetConnectionsResponse404,
-  GetConnectionsResponse500,
-  GetConnectionsResponse503,
-  GetConnectorMetadataParam,
-  GetConnectorResponse200,
-  GetConnectorResponse400,
-  GetConnectorResponse401,
-  GetConnectorResponse404,
-  GetConnectorResponse500,
-  GetConnectorsMetadataParam,
-  GetConnectorsResponse200,
-  GetConnectorsResponse400,
-  GetConnectorsResponse401,
-  GetConnectorsResponse500,
-  GetTransactionMetadataParam,
-  GetTransactionResponse200,
-  GetTransactionResponse400,
-  GetTransactionResponse403,
-  GetTransactionResponse404,
-  GetTransactionResponse500,
-  GetTransactionResponse503,
-  GetTransactionsMetadataParam,
-  GetTransactionsResponse200,
-  GetTransactionsResponse400,
-  GetTransactionsResponse403,
-  GetTransactionsResponse404,
-  GetTransactionsResponse500,
-  RefreshConnectionMetadataParam,
-  RefreshConnectionResponse202,
-  RefreshConnectionResponse400,
-  RefreshConnectionResponse403,
-  RefreshConnectionResponse404,
-  RefreshConnectionResponse500,
-  RefreshConnectionResponse503,
-  RefreshConnectionsMetadataParam,
-  RefreshConnectionsResponse202,
-  RefreshConnectionsResponse400,
-  RefreshConnectionsResponse403,
-  RefreshConnectionsResponse404,
-  RefreshConnectionsResponse500,
-} from './types';
+declare const createSDK: SDK;
+export = createSDK;

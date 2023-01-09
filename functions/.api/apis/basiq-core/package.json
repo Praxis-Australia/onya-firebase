@@ -1,7 +1,7 @@
 {
   "name": "@api/basiq-core",
   "version": "3.0.0",
-  "main": "./index.ts",
+  "main": "./index.js",
   "types": "./index.d.ts",
   "dependencies": {
     "api": "^5.0.5",
