@@ -19,7 +19,7 @@ export const basiqTokenConverter: firestore.FirestoreDataConverter<BasiqToken> =
   }
 }
 
-export const userCollectionRef = firestore().collection('users') as firestore.CollectionReference<User>;
+export const userCollectionRef = firestore().collection('users');
 
 export const userDocConverter: firestore.FirestoreDataConverter<User> = {
   toFirestore(user: User): FirebaseFirestore.DocumentData {
