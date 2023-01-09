@@ -1,5 +1,5 @@
 import { firestore } from 'firebase-admin';
-import { https } from 'firebase-functions/v1';
+import { https } from 'firebase-functions';
 import { BasiqToken, isBasiqToken } from './types/basiq';
 import { User, isUser } from './types/user';
 
@@ -24,8 +24,7 @@ export const userCollectionRef = firestore().collection('users') as firestore.Co
 export const userDocConverter: firestore.FirestoreDataConverter<User> = {
   toFirestore(user: User): FirebaseFirestore.DocumentData {
     return { 
-      ...user,
-      userCreated: firestore.Timestamp.fromDate(user.userCreated),
+      ...user
     };
   },
   fromFirestore(snapshot: firestore.QueryDocumentSnapshot): User {  
