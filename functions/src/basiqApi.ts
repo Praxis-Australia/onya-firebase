@@ -155,8 +155,8 @@ export const getAuthLink = async (basiqUid: string): Promise<string> => {
   throw new https.HttpsError('unknown', "another unkown error with Basiq API", res.data);
 }
 
-export const createBasiqUser = 
-  async (uid: string, phoneNumber: string, email?: string, firstName?: string, lastName?: string, allowOverwrite=false): Promise<void> => {
+export const initBasiqUser = 
+  async (uid: string, phoneNumber: string, firstName?: string, lastName?: string, email?: string, allowOverwrite=false): Promise<void> => {
     const userSnapshot = await userCollectionRef.doc(uid).get()
       .catch(err => {
         throw new https.HttpsError('unavailable', 'Network error connecting with Firestore', err);
@@ -169,7 +169,7 @@ export const createBasiqUser =
     // Throws https.HTTPError is the doc doesn't match User type
     const user = userSnapshot.data()!;
 
-    if (!allowOverwrite && user.basiq.configStatus !== 'BASIQ_USER_CREATED') {
+    if (!allowOverwrite && user.basiq.configStatus !== 'NOT_CONFIGURED') {
       throw new https.HttpsError('already-exists', 'A Basiq user has already been created for this user');
     }
 
@@ -209,7 +209,7 @@ export const createBasiqUser =
     throw new https.HttpsError('unknown', "another unkown error with Basiq API", res.data);
 }
 
-export const refreshUserBasicInfo = async (uid: string): Promise<void> => {
+export const refreshUserBasiqInfo = async (uid: string): Promise<void> => {
   const userSnapshot = await userCollectionRef.doc(uid)
     .withConverter(userDocConverter)
     .get()
