@@ -3,6 +3,10 @@ import basiqCore from '@api/basiq-core';
 import basiqData from '@api/basiq-data';
 import { basiqTokenConverter, basiqTokenDocRef, userCollectionRef, userDocConverter } from './utils/firestore';
 import type { BasiqAccount, BasiqConfig, BasiqConfigComplete, BasiqConfigUserCreated, BasiqToken } from './utils/types/Basiq';
+import { GetAccountsResponse200, GetConnectionsResponse200 } from '@api/basiq-data/types';
+import { CreateUserResponse201 } from '@api/basiq-core/types';
+
+let global_access_token: BasiqToken;
 
 const fetchToken = async (userId?: string) => {
   if (!process.env.BASIQ_API_KEY) {
@@ -96,19 +100,23 @@ const refreshBasiqToken = async (): Promise<string> => {
 
 const getBasiqToken = async () => {
   try {
-    const docSnapshot = await basiqTokenDocRef.get();
-
-    if (docSnapshot.exists) {
-      const basiqToken = docSnapshot.data() as BasiqToken;
-
-      if (new Date().getTime() - basiqToken.expires_at < 300 * 1000) {
-        logger.log("returning cached basiq token")
-        return basiqToken.access_token;
-      } else {
-        throw new Error("Token expired");
-      }
+    let latestToken: BasiqToken;
+    if (global_access_token) {
+      latestToken = global_access_token;
     } else {
-      throw new Error("Token doc not found");
+      const docSnapshot = await basiqTokenDocRef.get();
+      if (docSnapshot.exists) {
+        latestToken = docSnapshot.data() as BasiqToken;
+      } else {
+        throw new Error("Token doc not found");
+      }
+    }
+
+    if (new Date().getTime() - latestToken.expires_at < 300 * 1000) {
+      logger.log("returning cached basiq token")
+      return latestToken.access_token;
+    } else {
+      throw new Error("Token expired");
     }
   } catch (err) {
     logger.info("Issue fetching existing Basiq token from doc")
@@ -119,48 +127,51 @@ const getBasiqToken = async () => {
 
 const getConnectionIds = async (basiqUid: string): Promise<Array<string>> => {
   basiqData.auth(await getBasiqToken());
-  const res = await basiqData.getConnections({userId: basiqUid})
+  const data = await basiqData.getConnections({userId: basiqUid})
+    .then(res => res.data)
     .catch(err => {
-      throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
-    });
+      if (err.name === 'FetchError') {
+        if (err.status === 403) {
+          throw new https.HttpsError('permission-denied', 'basiq access token does not have permission to this endpoint', err.data)
+        } 
+        if (err.status === 404) {
+          throw new https.HttpsError('not-found', 'Specified Basiq user does not exist', err.data);
+        }
+        throw new https.HttpsError('unknown', "Unkown error response from Basiq API", err.data);
+      }
+      throw new https.HttpsError("unknown", "Error while calling Basiq API", err.message)
+    }) as GetConnectionsResponse200;
 
-  if (res.status === 200) {
-    return res.data.data!.map(connection => connection.id);
-  }
-
-  if (res.status === 403) {
-    throw new https.HttpsError('permission-denied', 'basiq access token does not have permission to access auth link', res.data)
-  } 
-  if (res.status === 404) {
-    throw new https.HttpsError('not-found', 'Specified Basiq user does not exist', res.data);
-  }
-  throw new https.HttpsError('unknown', "another unkown error with Basiq API", res.data);
+    return data.data!.map(connection => connection.id);
 }
 
 const getAccounts = async (basiqUid: string): Promise<Array<BasiqAccount>> => {
   basiqData.auth(await getBasiqToken());
-  const res = await basiqData.getAccounts({
+  const data = await basiqData.getAccounts({
     userId: basiqUid
   })
+    .then(res => res.data)
+    .catch(err => {
+      if (err.name === 'FetchError') {
+        if (err.status === 403) {
+          throw new https.HttpsError('permission-denied', 'basiq access token does not have permission to this endpoint', err.data)
+        } 
+        if (err.status === 404) {
+          throw new https.HttpsError('not-found', 'Specified Basiq user does not exist', err.data);
+        }
+        throw new https.HttpsError('unknown', "Unkown error response from Basiq API", err.data);
+      }
+      throw new https.HttpsError("unknown", "Error while calling Basiq API", err.message)
+    }) as GetAccountsResponse200;
 
-  if (res.status === 200) {
-    return res.data.data
+    return data.data
       .filter(account => account["status"] == "available")
       .map(account => ({
         id: account["id"],
         name: account["name"],
         institution: account["institution"],
         accountNumber: account["accountNo"],
-      } as BasiqAccount))
-  }
-
-  if (res.status === 403) {
-    throw new https.HttpsError('permission-denied', 'basiq access token does not have permission to access auth link', res.data)
-  } 
-  if (res.status === 404) {
-    throw new https.HttpsError('not-found', 'Specified Basiq user does not exist', res.data);
-  }
-  throw new https.HttpsError('unknown', "another unkown error with Basiq API", res.data);
+      } as BasiqAccount));
 }
 
 export const getClientToken = async (uid: string): Promise<string> => {
@@ -226,52 +237,49 @@ export const initBasiqUser =
     }
 
     basiqCore.auth(await getBasiqToken())
-    const res = await basiqCore.createUser({
+    const data = await basiqCore.createUser({
       mobile,
       ...email ? {email} : {},
       ...firstName ? {firstName} : {},
       ...lastName ? {lastName} : {}
     })
-      .then(res => {
-        return res;
-      })
+      .then(res => res.data)
       .catch(err => {
-        console.error(err);
-        throw new https.HttpsError('unavailable', 'Network error connecting with Basiq API', err);
-      });
-    
-    if (res.status === 201) {
-      // Ideally we'd use .update() so we can only update field as needed
-      // But because of nodejs-firestore issue #1745, it's not typesafe
-      // So as a workaround we use .set() with already fetched data
-      const { access_token, expires_in } = await fetchToken(res.data.id);
-      const expires_at  = new Date().getTime() + expires_in * 1000
-
-      await userCollectionRef.doc(uid)
-        .set({
-          ...user,
-          basiq: {
-            configStatus: 'BASIQ_USER_CREATED',
-            uid: res.data.id,
-            clientToken: {
-              access_token,
-              expires_at
-            }
+        if (err.name === 'FetchError') {
+          if (err.status === 400) {
+            throw new https.HttpsError('invalid-argument', 'Invalid arguments passed to Basiq API', err.data);
           }
-        })
-        .catch((err) => {
-          throw new https.HttpsError('internal', 'Error writing user to Firestore', err);
-        });
-    }
+          if (err.status === 403) {
+            throw new https.HttpsError('permission-denied', 'basiq token is invalid', err.data)
+          } 
+          throw new https.HttpsError('unknown', "Unkown error response from Basiq API", err.data);
+        }
+        throw new https.HttpsError("unknown", "Error while calling Basiq API", err.message)
+      }) as CreateUserResponse201;
+    
+    // Ideally we'd use .update() so we can only update field as needed
+    // But because of nodejs-firestore issue #1745, it's not typesafe
+    // So as a workaround we use .set() with already fetched data
+    const { access_token, expires_in } = await fetchToken(data.id);
+    const expires_at  = new Date().getTime() + expires_in * 1000
 
-    if (res.status === 400) {
-      throw new https.HttpsError('invalid-argument', 'Invalid arguments passed to Basiq API', res.data);
-    }
-    if (res.status === 403) {
-      throw new https.HttpsError('permission-denied', 'basiq token is invalid', res.data)
-    } 
-    throw new https.HttpsError('unknown', "another unkown error with Basiq API", res.data);
+    await userCollectionRef.doc(uid)
+      .set({
+        ...user,
+        basiq: {
+          configStatus: 'BASIQ_USER_CREATED',
+          uid: data.id,
+          clientToken: {
+            access_token,
+            expires_at
+          }
+        }
+      })
+      .catch((err) => {
+        throw new https.HttpsError('internal', 'Error writing user to Firestore', err);
+      });
 }
+
 export const refreshUserBasiqInfo = async (uid: string): Promise<void> => {
   const userSnapshot = await userCollectionRef.doc(uid)
     .withConverter(userDocConverter)
@@ -297,17 +305,18 @@ export const refreshUserBasiqInfo = async (uid: string): Promise<void> => {
   let updatedBasiqConfig: BasiqConfig;
   if (connectionIds.length) {
     updatedBasiqConfig = {
-      configStatus: "BASIQ_USER_CREATED",
-      uid: user.basiq.uid,
-    } as BasiqConfigUserCreated
-  } else {
-    updatedBasiqConfig = {
       configStatus: "COMPLETE",
       uid: user.basiq.uid,
       connectionIds,
       availableAccounts,
     } as BasiqConfigComplete
+  } else {
+    updatedBasiqConfig = {
+      configStatus: "BASIQ_USER_CREATED",
+      uid: user.basiq.uid,
+    } as BasiqConfigUserCreated
   }
+  console.log(updatedBasiqConfig);
 
   await userCollectionRef.doc(uid)
     .withConverter(userDocConverter)
