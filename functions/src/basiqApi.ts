@@ -4,18 +4,16 @@ import basiqData from '@api/basiq-data';
 import { basiqTokenConverter, basiqTokenDocRef, userCollectionRef, userDocConverter } from './utils/firestore';
 import type { BasiqAccount, BasiqConfig, BasiqConfigComplete, BasiqConfigUserCreated, BasiqToken } from './utils/types/basiq';
 
-const refreshBasiqToken = async (): Promise<string> => {
-  logger.log("fetching new basiq token")
-
-  if (!process.env.BASIQ_API_KEY) {
-    throw new https.HttpsError('not-found', 'Basiq API key not set in env');
-  }
-
-  // BUG: api@5 doesn't work with .auth for some reason
-  // So we're using just a node-fetch as a work-around
+const fetchToken = async (userId?: string) => {
   const url = 'https://au-api.basiq.io/token';
   const encodedParams = new URLSearchParams();
-  encodedParams.set('scope', 'SERVER_ACCESS');
+  if (userId) {
+    encodedParams.set('scope', 'CLIENT_ACCESS');
+    encodedParams.set('userId', userId)
+  } else {
+    encodedParams.set('scope', 'SERVER_ACCESS')
+  }
+
   const options = {
     method: 'POST',
     headers: {
@@ -31,6 +29,7 @@ const refreshBasiqToken = async (): Promise<string> => {
     .catch(err => {
       throw new https.HttpsError("unknown", "Error while calling Basiq API", err.message)
     });
+  
   const data = await res.json()
     .catch(err => {
       throw new https.HttpsError("internal", "Error converting body to JSON", err.message)
@@ -42,6 +41,23 @@ const refreshBasiqToken = async (): Promise<string> => {
       body: data
     })
   }
+
+  return {
+    access_token: data.access_token,
+    expires_in: data.expires_in
+  }
+}
+
+const refreshBasiqToken = async (): Promise<string> => {
+  logger.log("fetching new basiq token")
+
+  if (!process.env.BASIQ_API_KEY) {
+    throw new https.HttpsError('not-found', 'Basiq API key not set in env');
+  }
+
+  // BUG: api@5 doesn't work with .auth for some reason
+  // So we're using just a node-fetch as a work-around
+  const data = await fetchToken();
   // basiqCore.auth(`Basic ${process.env.BASIQ_API_KEY}`);
   // const data = await basiqCore.postToken({scope: 'SERVER_ACCESS'}, {
   //   // accept: 'application/json',
@@ -223,7 +239,6 @@ export const initBasiqUser =
       ...lastName ? {lastName} : {}
     })
       .then(res => {
-        console.log(res.data)
         return res;
       })
       .catch(err => {
