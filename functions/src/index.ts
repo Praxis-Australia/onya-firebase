@@ -29,11 +29,22 @@ export const createBasiqUser = functions.https.onCall(async (data, context) => {
   await basiqApi.initBasiqUser(uid, phone_number, firstName, lastName);
 })
 
-exports.refreshUserBasiqInfo = functions.https.onCall(async (_, context) => {
+export const refreshUserBasiqInfo = functions.https.onCall(async (_, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
   }
 
   const { uid } = context.auth;
   await basiqApi.refreshUserBasiqInfo(uid);
+})
+
+export const getClientToken = functions.https.onCall(async (_, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
+  }
+
+  const { uid } = context.auth;
+  return {
+    access_token: await basiqApi.getClientToken(uid)
+  };
 })

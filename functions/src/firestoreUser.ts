@@ -2,7 +2,7 @@ import { firestore } from "firebase-admin";
 import { https } from "firebase-functions";
 import { userCollectionRef, userDocConverter } from "./utils/firestore";
 import fs = require('fs');
-import { User } from "./utils/types/user";
+import { User } from "./utils/types/User";
 
 let templateUserDoc: User;
 
