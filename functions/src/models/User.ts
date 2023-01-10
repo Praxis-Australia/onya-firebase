@@ -1,5 +1,5 @@
 import { DocumentReference } from 'firebase-admin/firestore'
-import { BasiqConfig } from './Basiq'
+import type { BasiqAccount, BasiqToken } from './Basiq';
 
 export interface User {
   basiq: BasiqConfig,
@@ -10,6 +10,29 @@ export interface User {
   transactions: Array<DocumentReference>,
   uid: string,
   userCreated: Date
+}
+
+export type BasiqConfig = 
+  | BasiqConfigNotConfigured
+  | BasiqConfigUserCreated
+  | BasiqConfigComplete;
+
+export interface BasiqConfigNotConfigured {
+  configStatus: "NOT_CONFIGURED"
+}
+
+export interface BasiqConfigUserCreated {
+  configStatus: "BASIQ_USER_CREATED",
+  uid: string,
+  clientToken: BasiqToken
+}
+
+export interface BasiqConfigComplete {
+  configStatus: "COMPLETE",
+  availableAccounts: Array<BasiqAccount>,
+  connectionIds: Array<string>,
+  uid: string,
+  clientToken: BasiqToken
 }
 
 export interface Roundup {

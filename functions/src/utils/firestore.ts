@@ -1,7 +1,7 @@
 import { firestore } from 'firebase-admin';
 import { https } from 'firebase-functions';
-import { BasiqConfig, BasiqToken } from './types/Basiq';
-import { User } from './types/User';
+import type { BasiqToken } from '../models/Basiq';
+import type { User, BasiqConfig } from '../models/User';
 
 export const basiqTokenDocRef = firestore().collection('env').doc('basiqToken') as firestore.DocumentReference<BasiqToken>;
 

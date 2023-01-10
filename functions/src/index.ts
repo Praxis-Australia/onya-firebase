@@ -2,8 +2,8 @@ import * as functions from 'firebase-functions';
 import { initializeApp } from 'firebase-admin/app';
 initializeApp();
 
-import * as basiqApi from './basiqApi';
-import { createUser as createFirestoreUser } from './firestoreUser';
+import * as basiqApi from './services/basiqApi';
+import { createUser as createFirestoreUser } from './services/user';
 
 const regionFunctions = functions.region('australia-southeast1')
 
