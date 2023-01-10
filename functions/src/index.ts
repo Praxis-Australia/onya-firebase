@@ -2,8 +2,12 @@ import * as functions from 'firebase-functions';
 import { initializeApp } from 'firebase-admin/app';
 initializeApp();
 
-import * as basiqApi from './services/basiqApi';
-import { createUser as createFirestoreUser } from './services/user';
+import { 
+  createUser as createFirestoreUser,
+  getBasiqClientToken,
+  initBasiqUser,
+  refreshBasiqInfo
+} from './services/user';
 
 const regionFunctions = functions.region('australia-southeast1')
 
@@ -27,7 +31,7 @@ export const createBasiqUser = regionFunctions.https.onCall(async (data, context
 
   functions.logger.log("creating Basiq user")
   
-  await basiqApi.initBasiqUser(uid, phone_number, firstName, lastName);
+  await initBasiqUser(uid, phone_number, firstName, lastName);
 })
 
 export const refreshUserBasiqInfo = regionFunctions.https.onCall(async (_, context) => {
@@ -36,7 +40,7 @@ export const refreshUserBasiqInfo = regionFunctions.https.onCall(async (_, conte
   }
 
   const { uid } = context.auth;
-  await basiqApi.refreshUserBasiqInfo(uid);
+  await refreshBasiqInfo(uid);
 })
 
 export const getClientToken = regionFunctions.https.onCall(async (_, context) => {
@@ -46,6 +50,6 @@ export const getClientToken = regionFunctions.https.onCall(async (_, context) =>
 
   const { uid } = context.auth;
   return {
-    access_token: await basiqApi.getClientToken(uid)
+    access_token: await getBasiqClientToken(uid)
   };
 })

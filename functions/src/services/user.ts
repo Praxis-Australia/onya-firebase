@@ -54,7 +54,7 @@ export const createUser = async (uid: string): Promise<void> => {
     });
 }
 
-export const getClientToken = async (uid: string): Promise<string> => {
+export const getBasiqClientToken = async (uid: string): Promise<string> => {
   const userRef = userCollectionRef.doc(uid);
   const userSnapshot = await userRef
     .withConverter(userDocConverter)
@@ -142,7 +142,7 @@ export const initBasiqUser =
       });
 }
 
-export const refreshUserBasiqInfo = async (uid: string): Promise<void> => {
+export const refreshBasiqInfo = async (uid: string): Promise<void> => {
   const userSnapshot = await userCollectionRef.doc(uid)
     .withConverter(userDocConverter)
     .get()
