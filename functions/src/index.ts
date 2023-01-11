@@ -1,7 +1,8 @@
 import * as functions from 'firebase-functions';
 import { initializeApp } from 'firebase-admin/app';
-require("firebase-functions/logger/compat");
 initializeApp();
+require("firebase-functions/logger/compat");
+
 
 import { 
   createUser as createFirestoreUser,
