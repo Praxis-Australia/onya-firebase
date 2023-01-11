@@ -116,7 +116,7 @@ export const initBasiqUser =
       throw new https.HttpsError('already-exists', 'A Basiq user has already been created for this user');
     }
 
-    const data = await createBasiqUser(mobile, firstName, lastName, email);
+    const data = await createBasiqUser(mobile, email, firstName, lastName);
     
     // Ideally we'd use .update() so we can only update field as needed
     // But because of nodejs-firestore issue #1745, it's not typesafe
