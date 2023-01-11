@@ -108,24 +108,20 @@ export interface User {
   connections: {
     type: 'list',
     count: number,
-    data: {
-      type: 'list',
-      count: number,
-      data: Array<{
-        type: 'connection',
-        id: string,
-        links: { self: string }
-      }>
-    },
-    email: string,
-    mobile: string,
-    name: string,
-    links: {
-      accounts: string,
-      connections: string,
-      self: string,
-      transactions: string
-    }
+    data: Array<{
+      type: 'connection',
+      id: string,
+      links: { self: string }
+    }>
+  },
+  email: string,
+  mobile: string,
+  name: string,
+  links: {
+    accounts: string,
+    connections: string,
+    self: string,
+    transactions: string
   }
 }
 

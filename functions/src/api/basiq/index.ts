@@ -20,7 +20,7 @@ export const postClientAuthToken = async (basiqUid: string) => {
 
 export const listConnectionIds = async (basiqUid: string): Promise<Array<string>> => {
   const res = await basiqFetch.getUser(await getBasiqToken(), basiqUid);
-  const connections = res.connections.data.data;
+  const connections = res.connections.data;
   
   return connections.map(connection => connection.id);
 }
