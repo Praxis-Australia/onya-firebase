@@ -1,10 +1,10 @@
-import { logger, https } from 'firebase-functions';
+import { https } from 'firebase-functions';
 import { userCollectionRef, userDocConverter } from "../utils/firestore";
 import { 
   createUser as createBasiqUser,  
-  fetchToken as fetchBasiqToken, 
   getAccounts as getBasiqAccounts, 
-  getConnectionIds as getBasiqConnectionIds
+  listConnectionIds as getBasiqConnectionIds,
+  postClientAuthToken
 } from '../lib/basiq';
 import type { BasiqConfig, BasiqConfigComplete, BasiqConfigUserCreated } from '../models/User';
 
@@ -76,11 +76,10 @@ export const getBasiqClientToken = async (uid: string): Promise<string> => {
   const clientToken = user.basiq.clientToken;
 
   if (new Date().getTime() - clientToken.expires_at < 300 * 1000) {
-    logger.log("returning cached basiq client token")
+    console.log("returning cached basiq client token")
     return clientToken.access_token;
   } else {
-    const { access_token, expires_in } = await fetchBasiqToken(user.basiq.uid);
-    const expires_at  = new Date().getTime() + expires_in * 1000
+    const { access_token, expires_at } = await postClientAuthToken(user.basiq.uid);
 
     await userRef
       .withConverter(userDocConverter)
@@ -122,8 +121,7 @@ export const initBasiqUser =
     // Ideally we'd use .update() so we can only update field as needed
     // But because of nodejs-firestore issue #1745, it's not typesafe
     // So as a workaround we use .set() with already fetched data
-    const { access_token, expires_in } = await fetchBasiqToken(data.id);
-    const expires_at  = new Date().getTime() + expires_in * 1000
+    const { access_token, expires_at } = await postClientAuthToken(data.id);
 
     await userCollectionRef.doc(uid)
       .set({

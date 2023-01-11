@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions';
 import { initializeApp } from 'firebase-admin/app';
+require("firebase-functions/logger/compat");
 initializeApp();
 
 import { 
@@ -29,7 +30,7 @@ export const createBasiqUser = regionFunctions.https.onCall(async (data, context
   const { phone_number } = context.auth.token;
   const { firstName, lastName } = data;
 
-  functions.logger.log("creating Basiq user")
+  console.log("creating Basiq user")
   
   await initBasiqUser(uid, phone_number, firstName, lastName);
 })
