@@ -2,8 +2,8 @@ import { https } from 'firebase-functions';
 import { userCollectionRef, userDocConverter } from "../utils/firestore";
 import { 
   createUser as createBasiqUser,  
-  getAccounts as getBasiqAccounts, 
-  listConnectionIds as getBasiqConnectionIds,
+  listAccountsIdName, 
+  listConnectionIds,
   postClientAuthToken
 } from '../lib/basiq';
 import type { BasiqConfig, BasiqConfigComplete, BasiqConfigUserCreated } from '../models/User';
@@ -159,8 +159,8 @@ export const refreshBasiqInfo = async (uid: string): Promise<void> => {
     throw new https.HttpsError('failed-precondition', 'A Basiq user has not been created for this user');
   }
 
-  const connectionIds = await getBasiqConnectionIds(user.basiq.uid);
-  const availableAccounts = await getBasiqAccounts(user.basiq.uid);
+  const connectionIds = await listConnectionIds(user.basiq.uid);
+  const availableAccounts = await listAccountsIdName(user.basiq.uid);
 
   let updatedBasiqConfig: BasiqConfig;
   if (connectionIds.length) {

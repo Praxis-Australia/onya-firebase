@@ -25,7 +25,7 @@ export const listConnectionIds = async (basiqUid: string): Promise<Array<string>
   return connections.map(connection => connection.id);
 }
 
-export const getAccountsIdName = async (basiqUid: string): Promise<Array<BasiqAccount>> => {
+export const listAccountsIdName = async (basiqUid: string): Promise<Array<BasiqAccount>> => {
   const res = await basiqFetch.listAccounts(await getBasiqToken(), basiqUid);
   const accounts = res.data;
   
