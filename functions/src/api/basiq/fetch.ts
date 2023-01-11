@@ -1,4 +1,3 @@
-import fetch, { Response } from 'node-fetch'
 import { 
   ErrorBody, 
   ErrorInstance, 
@@ -35,11 +34,11 @@ export class APIError<T extends ErrorInstance> extends Error {
   status: number;
   data: T;
 
-  constructor(res: Response, data: T) {
+  constructor(res: Response, body: ErrorBody<T>) {
     super();
     this.status = res.status;
     this.name = `Error response returned by Basiq API with ${res.status}`;
-    this.data = data;
+    this.data = body.data[0];
   }
 }
 
@@ -72,9 +71,9 @@ export const postAuthToken = async (apiKey: string, basiqUid?: string): Promise<
     body: encodedParams
   };
 
-  const res: Response = await fetch(url, options);
+  const res = await fetch(url, options);
 
-  if (res.ok) return res.json() as Promise<PostAuthTokenResponse>;
+  if (res.ok) return res.json();
   
   throw await getAPIError(res);
 }
@@ -98,7 +97,7 @@ export const createUser = async (accessToken: string, mobile: string, email?: st
 
   const res = await fetch(url, options);
 
-  if (res.ok) return res.json() as Promise<User>;
+  if (res.ok) return res.json();
 
   throw await getAPIError(res);
 }
@@ -115,7 +114,7 @@ export const getUser = async (accessToken: string, userId: string): Promise<User
 
   const res = await fetch(url, options);
 
-  if (res.ok) return res.json() as Promise<User>;
+  if (res.ok) return res.json();
 
   throw await getAPIError(res);
 }
@@ -137,13 +136,13 @@ export const listAccounts = async (accessToken: string, userId: string): Promise
 
   const res = await fetch(url, options);
 
-  if (res.ok) return res.json() as Promise<GetAccountsResponse>;
+  if (res.ok) return res.json();
 
   throw await getAPIError(res);
 }
 
 
-interface ListTransactionsResponse {
+interface GetTransactionsResponse {
   type: 'list',
   count: number,
   size: number,
@@ -151,7 +150,7 @@ interface ListTransactionsResponse {
   links: { self: string, next?: string }
 }
 
-interface ListTransactionsFilter {
+interface GetTransactionsFilter {
   'account.id'?: string,
   'transaction.status'?: Transaction["status"],
   'transaction.postDate'?: 
@@ -162,14 +161,14 @@ interface ListTransactionsFilter {
   'institution.id'?: string,
 }
 
-export const listTransactions = async (accessToken: string, userId: string, limit?: number, filter?: ListTransactionsFilter): Promise<ListTransactionsResponse> => {
+export const listTransactions = async (accessToken: string, userId: string, limit?: number, filter?: GetTransactionsFilter): Promise<GetTransactionsResponse> => {
   const url = `https://au-api.basiq.io/users/${userId}/transactions`;
   const encodedQueryParams = new URLSearchParams();
 
   if (typeof limit !== 'undefined') encodedQueryParams.set('limit', limit.toString());
   if (typeof filter !== 'undefined') {
     let filterParamValue: string = Object.keys(filter).reduce((acc: string, key: string, index: number) => {
-      const value = filter[key as keyof ListTransactionsFilter]!;
+      const value = filter[key as keyof GetTransactionsFilter]!;
 
       // Add comma at start if it's not the first key
 
@@ -199,12 +198,12 @@ export const listTransactions = async (accessToken: string, userId: string, limi
 
   const res = await fetch(url + '?' + encodedQueryParams, options);
 
-  if (res.ok) return res.json() as Promise<ListTransactionsResponse>;
+  if (res.ok) return res.json();
   
   throw await getAPIError(res);
 }
 
-export const listTransactionsNext = async (accessToken: string, nextUrl: string): Promise<ListTransactionsResponse> => {
+export const listTransactionsNext = async (accessToken: string, nextUrl: string): Promise<GetTransactionsResponse> => {
   const options = {
     method: 'GET', 
     headers: { 
@@ -215,27 +214,26 @@ export const listTransactionsNext = async (accessToken: string, nextUrl: string)
 
   const res = await fetch(nextUrl, options);
 
-  if (res.ok) return res.json() as Promise<ListTransactionsResponse>;
+  if (res.ok) return res.json();
   
   throw await getAPIError(res);
 }
 
-const getAPIError = async <T extends ErrorInstance>(res: Response): Promise<APIError<T>> => {
-  const errorBody = await res.json() as ErrorBody<T>;
-  const data = errorBody.data[0];
+const getAPIError = async (res: Response): Promise<APIError<ErrorInstance>> => {
+  const errorBody = await res.json();
 
   switch (res.status) {
     case 400:
-      throw new APIError(res, data as ErrorInstance400)
+      throw new APIError<ErrorInstance400>(res, errorBody)
     case 401:
-      throw new APIError(res, data as ErrorInstance401)
+      throw new APIError<ErrorInstance401>(res, errorBody)
     case 403:
-      throw new APIError(res, data as ErrorInstance403)
+      throw new APIError<ErrorInstance403>(res, errorBody)
     case 404:
-      throw new APIError(res, data as ErrorInstance404)
+      throw new APIError<ErrorInstance404>(res, errorBody)
     case 500:
-      throw new APIError(res, data as ErrorInstance500)
+      throw new APIError<ErrorInstance500>(res, errorBody)
     default:
-      throw new APIError(res, data);
+      throw new APIError(res, errorBody);
   }
 }

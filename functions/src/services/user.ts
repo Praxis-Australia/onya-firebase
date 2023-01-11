@@ -5,7 +5,7 @@ import {
   listAccountsIdName, 
   listConnectionIds,
   postClientAuthToken
-} from '../api/basiq';
+} from '../lib/basiq';
 import type { BasiqConfig, BasiqConfigComplete, BasiqConfigUserCreated } from '../models/User';
 
 

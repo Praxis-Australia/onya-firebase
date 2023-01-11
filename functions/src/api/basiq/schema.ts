@@ -129,17 +129,16 @@ export interface User {
   }
 }
 
-export interface ErrorBody<ErrorInstance> {
+export interface ErrorBody<T extends ErrorInstance> {
   type: 'list',
   correlationId: string,
-  data: Array<ErrorInstance>
+  data: Array<T>
 }
 
 export interface ErrorInstance {
   type: 'error',
   detail?: string,
   title?: string,
-  code: string
 }
 
 export interface ErrorInstance400 extends ErrorInstance {
