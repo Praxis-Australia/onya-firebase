@@ -3,12 +3,17 @@
 // Transaction.enrich
 // Connection.profile
 
+// Quirk about transaction response
+// - When transaction is pending, there's no postDate
+// - When transaction is posted, there's no transactionDate
+// - I'm not sure if the id persists
+// - postDate defaults to a rounded-date, not actual time
 export interface Transaction {
   type: 'transaction',
   id: string,
   account: string,
-  amount: string,
-  balance: string,
+  amount: number,
+  balance: number,
   class: 
     'bank-fee' | 
     'payment' | 
@@ -22,9 +27,9 @@ export interface Transaction {
   direction: 'debit' | 'credit',
   enrich?: { [key: string]: any}
   institution: string,
-  postDate: string,
+  postDate: Date | null,
   status: 'pending' | 'posted',
-  transactionDate: string,
+  transactionDate: Date | null,
   links: {
     account: string,
     institution: string,
@@ -37,8 +42,8 @@ export interface Account {
   id: string,
   accountHolder: string | null,
   accountNo: string,
-  availableFunds: string,
-  balance: string,
+  availableFunds: number,
+  balance: number,
   class: Array<{
     type: 
       'transaction' |
@@ -56,12 +61,12 @@ export interface Account {
   connection: string,
   currency: string,
   institution: string,
-  lastUpdated: string,
+  lastUpdated: Date,
   name: string,
   status: 'available' | 'unavailable',
   transactionIntervals: Array<{
-    from: string,
-    to: string
+    from: Date,
+    to: Date
   }>,
   links: {
     institution: string,
@@ -128,8 +133,8 @@ export interface User {
 export interface Job {
   type: 'job',
   id: string,
-  created: string,
-  updated: string,
+  created: Date,
+  updated: Date,
   steps: Array<{
     title: string,
     status: 'success' | 'in-progress' | 'pending' | 'failed',
@@ -153,8 +158,8 @@ export interface Payrequest {
   type: 'payrequest',
   id: string,
   requestId: string,
-  created: string,
-  updated: string,
+  created: Date,
+  updated: Date,
   method: string,
   status: 'success' | 'in-progress' | 'pending',
   payer: {
@@ -169,6 +174,22 @@ export interface Payrequest {
   links: {
     self: string,
     job: string
+  }
+}
+
+export interface AuthToken {
+  access_token: string,
+  expires_in: number,
+  token_type: string
+}
+
+export interface List<T> {
+  count: number,
+  data: T[],
+  // Potentially make this into a callable in next iteration
+  next?: {
+    remainingCount: number,
+    link: string
   }
 }
 
