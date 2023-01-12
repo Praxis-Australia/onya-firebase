@@ -125,6 +125,53 @@ export interface User {
   }
 }
 
+export interface Job {
+  type: 'job',
+  id: string,
+  created: string,
+  updated: string,
+  steps: Array<{
+    title: string,
+    status: 'success' | 'in-progress' | 'pending' | 'failed',
+    result: null | {
+      type: string
+    }
+  }>,
+  links: {
+    self: string,
+    source: string
+  }
+}
+
+export interface PayrequestJob extends Job {
+  partnerId: string,
+  applicationId: string,
+  jobType: 'payrequest'
+}
+
+export interface Payrequest {
+  type: 'payrequest',
+  id: string,
+  requestId: string,
+  created: string,
+  updated: string,
+  method: string,
+  status: 'success' | 'in-progress' | 'pending',
+  payer: {
+    payerUserId: string,
+    payerBankBranchCode?: string,
+    payerAccountNumber?: string,
+    payerAccountId?: string
+  },
+  description: string,
+  amount: number,
+  currency: string,
+  links: {
+    self: string,
+    job: string
+  }
+}
+
 export interface ErrorBody<T extends ErrorInstance> {
   type: 'list',
   correlationId: string,
