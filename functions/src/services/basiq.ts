@@ -178,6 +178,10 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
         .doc(transaction.id)
 
       return [basiqTransaction, transactionRef] as [BasiqTransaction, DocumentReference<BasiqTransaction>];
+    }).filter(async transaction => {
+      // Really should find a cheaper way of checking this, i.e. via
+      // Storing a record in user.basiq property of all transactions added since start of day
+      return (await transaction[1].get()).exists
     })
 
     basiqTransactions.forEach(async transaction => {
