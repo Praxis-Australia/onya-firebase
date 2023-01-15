@@ -83,7 +83,7 @@ export const createUser = async (mobile: string, email?: string, firstName?: str
 }
 
 export const createPayrequest = async (requestId: string, payerUserId: string, amount: number): Promise<Payrequest> => {
-  const res = await basiqFetch.submitPayRequest(await getBasiqToken(), requestId, payerUserId, `OnyaTransaction: ${requestId}`, amount, true, true);
+  const res = await basiqFetch.submitPayRequest(await getBasiqToken(), requestId, payerUserId, `OnyaTransaction: ${requestId}`, Math.round(amount / 100), true, true);
   
   const payrequest = await basiqFetch.getPayrequest(await getBasiqToken(), res.jobs[0].id);
   

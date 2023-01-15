@@ -24,7 +24,7 @@ export const createUser = async (uid: string): Promise<void> => {
     lastName: null,
     donationMethods: {
       roundup: {
-        debitAt:10,
+        debitAt: 1000,
         debitAccountId:null,
         isEnabled:false,
         roundTo: null,

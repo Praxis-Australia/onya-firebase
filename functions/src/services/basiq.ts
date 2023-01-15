@@ -160,7 +160,7 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
       const basiqTransaction: BasiqTransaction = {
         id: transaction.id,
         accountId: transaction.account,
-        amount: transaction.amount,
+        amount: Math.round(transaction.amount * 100),
         class: transaction.class,
         connection: transaction.connection,
         description: transaction.description,
@@ -187,10 +187,10 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
     })
 
 
-    // basiqTransactions.forEach(async transaction => {
-    //   await transaction[1]
-    //     .set(transaction[0])
-    // })
+    basiqTransactions.forEach(async transaction => {
+      await transaction[1]
+        .set(transaction[0])
+    })
 
     if (transactionsCallbackFn) await transactionsCallbackFn(updatedUser, basiqTransactions);
   })
