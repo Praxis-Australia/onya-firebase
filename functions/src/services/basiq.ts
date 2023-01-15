@@ -162,6 +162,8 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
         accountId: transaction.account,
         amount: transaction.amount,
         class: transaction.class,
+        connection: transaction.connection,
+        description: transaction.description,
         direction: transaction.direction,
         institutionId: transaction.institution,
         postDate: transaction.postDate,
@@ -181,13 +183,14 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
     }).filter(async transaction => {
       // Really should find a cheaper way of checking this, i.e. via
       // Storing a record in user.basiq property of all transactions added since start of day
-      return (await transaction[1].get()).exists
+      return !(await transaction[1].get()).exists
     })
 
-    basiqTransactions.forEach(async transaction => {
-      await transaction[1]
-        .set(transaction[0])
-    })
+
+    // basiqTransactions.forEach(async transaction => {
+    //   await transaction[1]
+    //     .set(transaction[0])
+    // })
 
     if (transactionsCallbackFn) await transactionsCallbackFn(updatedUser, basiqTransactions);
   })

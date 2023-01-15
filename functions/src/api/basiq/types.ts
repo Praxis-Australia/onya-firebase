@@ -23,6 +23,8 @@ export interface Transaction {
     'direct-credit' |
     'interest' |
     'loan-repayment',
+  connection: string,
+  description: string,
   direction: 'debit' | 'credit',
   enrich: Enrich
   institution: string,

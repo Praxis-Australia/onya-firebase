@@ -223,6 +223,8 @@ export const basiqTransactionConverter: firestore.FirestoreDataConverter<BasiqTr
         accountId: data.accountId,
         amount: data.amount,
         class: data.class,
+        connection: data.connection,
+        description: data.description,
         direction: data.direction,
         institutionId: data.institutionId,
         postDate: data.postDate && data.postDate.toDate(),

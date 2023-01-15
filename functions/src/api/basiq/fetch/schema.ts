@@ -17,6 +17,8 @@ interface RawTransaction {
     'direct-credit' |
     'interest' |
     'loan-repayment',
+  connection: string,
+  description: string,
   direction: 'debit' | 'credit',
   enrich: RawEnrich,
   institution: string,

@@ -2,7 +2,7 @@ import { DocumentReference } from "firebase-admin/firestore";
 import { createPayrequest } from "../api/basiq";
 import { BasiqDataComplete, BasiqTransaction } from "../models/Basiq";
 import { User } from "../models/User";
-import { onyaTransactionCollectionRef, onyaTransactionConverter } from "../utils/firestore";
+import { onyaTransactionCollectionRef, onyaTransactionConverter, userCollectionRef } from "../utils/firestore";
 import { roundupBy } from "../utils/roundup";
 
 
@@ -43,6 +43,15 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
       user.donationMethods.nextDebit.donationSources = [];
     }
   })
+
+
+// merge: true doesn't work because of how converter is implemented
+// So we don't use converter here
+  await userCollectionRef
+    .doc(user.uid)
+    .set({
+      donationMethods: user.donationMethods
+    }, { merge: true })
 }
 
 const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit'], charitySelection: User['charitySelection']) => {

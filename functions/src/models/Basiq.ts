@@ -40,6 +40,8 @@ export interface BasiqTransaction {
   accountId: string,
   amount: number,
   class: Transaction['class'],
+  connection: string,
+  description: string,
   direction: Transaction['direction'],
   institutionId: string,
   postDate: Date | null,
