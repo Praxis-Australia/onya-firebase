@@ -1,6 +1,7 @@
 import { firestore } from 'firebase-admin';
 import { https } from 'firebase-functions';
 import type { BasiqToken, BasiqTransaction } from '../models/Basiq';
+import { OnyaTransaction } from '../models/OnyaTransaction';
 import type { User } from '../models/User';
 
 export const basiqTokenDocRef = firestore().collection('env').doc('basiqToken') as firestore.DocumentReference<BasiqToken>;
@@ -38,12 +39,9 @@ export const userDocConverter: firestore.FirestoreDataConverter<User> = {
         } : {}
       },
       charitySelection: Object.fromEntries(user.charitySelection),
-      roundup: {
-        ...user.roundup,
-        nextDebit: {
-          accAmount: user.roundup.nextDebit.accAmount,
-          lastChecked: user.roundup.nextDebit.lastChecked && firestore.Timestamp.fromDate(user.roundup.nextDebit.lastChecked)
-        }
+      donationMethods: {
+        roundup: user.donationMethods.roundup,
+        nextDebit: user.donationMethods.nextDebit
       },
       userCreated: firestore.Timestamp.fromDate(user.userCreated)
     };
@@ -66,17 +64,10 @@ export const userDocConverter: firestore.FirestoreDataConverter<User> = {
         charitySelection: new Map<string, number>(Object.entries(data.charitySelection)),
         firstName: data.firstName,
         lastName: data.lastName,
-        roundup: {
-          config: data.roundup.config,
-          nextDebit: {
-            accAmount: data.roundup.nextDebit.accAmount,
-            lastChecked: data.roundup.nextDebit.lastChecked && data.roundup.nextDebit.lastChecked.toDate()
-          },
-          statistics: {
-            total: data.roundup.statistics.total
-          }
+        donationMethods: {
+          roundup: data.donationMethods.roundup,
+          nextDebit: data.donationMethods.nextDebit
         },
-        transactions: data.transactions,
         uid: data.uid,
         userCreated: data.userCreated.toDate()
       };
@@ -100,9 +91,8 @@ function matchesUser(obj: any): boolean {
             Object.values(obj.charitySelection).every(value => typeof value === 'number') &&
             (obj.firstName == null || typeof obj.firstName === 'string') &&
             (obj.lastName == null || typeof obj.lastName === 'string') &&
-            matchesRoundup(obj.roundup) &&
-            Array.isArray(obj.transactions) &&
-            obj.transactions.every((item: any) => item instanceof firestore.DocumentReference) &&
+            matchesNextDebit(obj.donationMethods.nextDebit) &&
+            matchesRoundupConfig(obj.donationMethods.roundup) &&
             typeof obj.uid === 'string' &&
             obj.userCreated instanceof firestore.Timestamp);
   } catch (_) {
@@ -110,12 +100,23 @@ function matchesUser(obj: any): boolean {
   }
 }
 
-function matchesRoundup(obj: any): boolean {
+function matchesNextDebit(obj: any): boolean {
   try {
-    return (matchesRoundupConfig(obj.config) &&
-            typeof obj.nextDebit.accAmount === 'number' &&
-            (obj.nextDebit.lastChecked == null || obj.nextDebit.lastChecked instanceof firestore.Timestamp) &&
-            typeof obj.statistics.total === 'number');
+    return (typeof obj.accruedAmount === 'number' &&
+            Array.isArray(obj.donationSources) &&
+            obj.donationSources.every(matchesDonationSource));
+  } catch (_) {
+    return false;
+  }
+}
+
+function matchesDonationSource(obj: any): boolean {
+  try {
+    const validDonationMethods = ['roundup']
+    return (validDonationMethods.includes(obj.donationMethod) &&
+            typeof obj.amount === 'number' &&
+            obj.basiqTransaction instanceof firestore.DocumentReference &&
+            obj.basiqTransaction.parent.id === 'basiqTransactions')
   } catch (_) {
     return false;
   }
@@ -263,3 +264,58 @@ function matchesBasiqTransaction(obj: any): boolean {
     return false;
   }
 }
+
+export const onyaTransactionCollectionRef = firestore().collection('onyaTransactions') as firestore.CollectionReference<OnyaTransaction>;
+
+export const onyaTransactionConverter: firestore.FirestoreDataConverter<OnyaTransaction> = {
+  toFirestore(onyaTransaction: OnyaTransaction): FirebaseFirestore.DocumentData {
+    return {
+      ...onyaTransaction,
+      created: firestore.Timestamp.fromDate(onyaTransaction.created),
+      updated: firestore.Timestamp.fromDate(onyaTransaction.updated),
+      charitySelection: Object.fromEntries(onyaTransaction.charitySelection)
+    };
+  },
+  fromFirestore(snapshot: firestore.QueryDocumentSnapshot): OnyaTransaction {
+    const data = snapshot.data();
+    if (!matchesOnyaTransaction(data)) {
+      throw new https.HttpsError('failed-precondition', 'The document is not a valid BasiqTransaction');
+    } else {
+      return {
+        basiqJobId: data.basiqJobId,
+        created: data.created.toDate(),
+        updated: data.updated.toDate(),
+        status: data.status,
+        payer: data.payer,
+        description: data.description,
+        amount: data.amount,
+        charitySelection: new Map<string, number>(Object.entries(data.charitySelection)),
+        donationSources: data.donationSources,
+      };
+    }
+  }
+}
+
+function matchesOnyaTransaction(obj: any): boolean {
+  const validStatus: OnyaTransaction['status'][] = ['success', 'in-progress', 'pending', 'failed'];
+
+  try {
+    return (typeof obj.basiqJobId === 'string' &&
+            obj.created instanceof firestore.Timestamp &&
+            obj.updated instanceof firestore.Timestamp &&
+            validStatus.includes(obj.status) &&
+            typeof obj.payer.userId === 'string' &&
+            typeof obj.payer.basiqUserId === 'string' &&
+            (obj.payer.basiqAccountId == null || typeof obj.payer.basiqAccountId === 'string') &&
+            (obj.payer.bankBranchCode == null || typeof obj.payer.bankBranchCode === 'string') &&
+            (obj.payer.bankAccountNumber == null || typeof obj.payer.bankAccountNumber === 'string') &&
+            typeof obj.description === 'string' &&
+            typeof obj.amount === 'number' &&
+            Object.values(obj.charitySelection).every(value => typeof value === 'number') &&
+            Array.isArray(obj.donationSources) &&
+            obj.donationSources.every(matchesDonationSource))
+  } catch (_) {
+    return false;
+  }
+}
+

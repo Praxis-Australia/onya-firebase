@@ -8,6 +8,7 @@ import {
   postClientAuthToken
 } from '../api/basiq';
 import { DocumentReference } from 'firebase-admin/firestore';
+import { User } from '../models/User';
 
 export const initBasiqUser = async (uid: string, mobile: string, firstName?: string, lastName?: string, email?: string, allowOverwrite=false): Promise<void> => {
   const userSnapshot = await userCollectionRef.doc(uid).get()
@@ -96,7 +97,7 @@ if (new Date().getTime() - clientToken.expires_at < 300 * 1000) {
 
 
 // @arg callbackFn: used on each fetched transaction to update data for roundups, etc.
-export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, callbackFn?: (arg0: BasiqTransaction, arg1: DocumentReference) => any): Promise<void> => {
+export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, transactionsCallbackFn?: (arg0: User, arg1: Array<[BasiqTransaction, DocumentReference<BasiqTransaction>]>) => any): Promise<void> => {
   const userRef = userCollectionRef.doc(uid);
   const userSnapshot = await userRef
     .withConverter(userDocConverter)
@@ -119,7 +120,7 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, ca
 
   const availableAccounts = await listAccounts(basiq.uid);
 
-  let updatedBasiqData: BasiqData = (availableAccounts.length) ? {
+  const updatedBasiqData: BasiqData = (availableAccounts.length) ? {
     configStatus: "COMPLETE",
     uid: basiq.uid,
     availableAccounts,
@@ -130,12 +131,14 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, ca
     clientToken: basiq.clientToken
   }
 
+  const updatedUser = {
+    ...user,
+    basiq: updatedBasiqData
+  }
+
   await userCollectionRef.doc(uid)
     .withConverter(userDocConverter)
-    .set({
-      ...user,
-      basiq: updatedBasiqData
-    })
+    .set(updatedUser)
     .catch((err) => {
       throw new https.HttpsError('internal', 'Error writing user to Firestore', err);
     });
@@ -153,8 +156,7 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, ca
     
     if (query.next) console.log(`Data not fully fetched. Next: ${query.next.link}`)
     const transactions = query.data;
-    
-    transactions.forEach(async transaction => {
+    const basiqTransactions = transactions.map(transaction => {
       const basiqTransaction: BasiqTransaction = {
         id: transaction.id,
         accountId: transaction.account,
@@ -175,10 +177,14 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, ca
         .withConverter(basiqTransactionConverter)
         .doc(transaction.id)
 
-      await transactionRef
-        .set(basiqTransaction)
-
-      if (callbackFn) await callbackFn(basiqTransaction, transactionRef);
+      return [basiqTransaction, transactionRef] as [BasiqTransaction, DocumentReference<BasiqTransaction>];
     })
+
+    basiqTransactions.forEach(async transaction => {
+      await transaction[1]
+        .set(transaction[0])
+    })
+
+    if (transactionsCallbackFn) await transactionsCallbackFn(updatedUser, basiqTransactions);
   })
 }

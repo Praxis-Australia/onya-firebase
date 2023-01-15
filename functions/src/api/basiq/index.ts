@@ -2,7 +2,7 @@ import { https } from 'firebase-functions';
 import type { BasiqAccount } from '../../models/Basiq';
 import { getBasiqToken } from './auth';
 import * as basiqFetch from './fetch';
-import { List, Transaction, User } from './types';
+import { List, Payrequest, Transaction, User } from './types';
 
 // This layer is just a nice wrapper for all the functions in ./fetch
 // We DON'T fuck with firestore and stuff here, that should be done in /services.
@@ -80,4 +80,12 @@ export const createUser = async (mobile: string, email?: string, firstName?: str
   const res = await basiqFetch.createUser(await getBasiqToken(), mobile, email, firstName, lastName);
 
   return res;
+}
+
+export const createPayrequest = async (requestId: string, payerUserId: string, amount: number): Promise<Payrequest> => {
+  const res = await basiqFetch.submitPayRequest(await getBasiqToken(), requestId, payerUserId, `OnyaTransaction: ${requestId}`, amount, true, true);
+  
+  const payrequest = await basiqFetch.getPayrequest(await getBasiqToken(), res.jobs[0].id);
+  
+  return payrequest;
 }

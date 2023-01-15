@@ -11,6 +11,7 @@ import {
   initBasiqUser,
   refreshBasiqInfo
 } from './services/basiq';
+import { processRoundupTransactions } from './services/roundup';
 
 const regionFunctions = functions.region('australia-southeast1')
 
@@ -43,7 +44,7 @@ export const refreshUserBasiqInfo = regionFunctions.https.onCall(async (_, conte
   }
 
   const { uid } = context.auth;
-  await refreshBasiqInfo(uid);
+  await refreshBasiqInfo(uid, true, processRoundupTransactions);
 })
 
 export const getClientToken = regionFunctions.https.onCall(async (_, context) => {

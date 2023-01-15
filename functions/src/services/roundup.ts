@@ -1,84 +1,83 @@
-
-// Non-ordered components of what we need to do
-// * Store basiq transactions (subset) in firestore or at least
-// * Store the last fetched transaction and its date
-// * Write a fetch transactions function which can filter right down to second
-// * When refreshing roundup amount, check
-//   * Transactions of monitored account from last transaction checked to now
-// * After fetching this transaction, add to accrued amount
-// * And optionally store the transactions in firestore
-
-// Everytime we roundup, check whether we need to debit the user
-// If we do, then debit the user and set amount -= debitedAmount
-
-// Debitting process:
-// * Create a payrequest through Basiq
-// * Store the transaction data in firestore including
-//   * Basic info like amount, charity allocation, etc.
-//   * Job ID in Basiq API
-//   * Status
-// * For all transactions that were debited for in this, make that reference
-// * Run a CRON job to keep checking Job Id
-//   * When it updates, update firestore with new status
+import { DocumentReference } from "firebase-admin/firestore";
+import { createPayrequest } from "../api/basiq";
+import { BasiqDataComplete, BasiqTransaction } from "../models/Basiq";
+import { User } from "../models/User";
+import { onyaTransactionCollectionRef, onyaTransactionConverter } from "../utils/firestore";
+import { roundupBy } from "../utils/roundup";
 
 
-// Optionally:
-// Also update a 'finalised' status when we actually donate the money away
-// To allow for refunds until they do
-// Maybe this field can be internal
+// Should really turn User into a class rather than just an interface
+// So I can have access to DocRef and whatnot
+export const processRoundupTransactions = async (user: User, basiqTransactions: Array<[BasiqTransaction, DocumentReference<BasiqTransaction>]>) => {
+  const roundup = user.donationMethods.roundup;
+  
+  if (!roundup.isEnabled) return;
 
-// export const refreshRoundupAmount = (uid: string) => {
-//   const 
-// }
+  const basiqData = user.basiq as BasiqDataComplete;
 
-// Firestore data structure:
-// - BasiqTransaction: Subcollection of user
-// - OnyaTransaction: Collection with references
+  let filteredTransactions = basiqTransactions.filter(value => {
+    const transactionData = value[0];
+    return transactionData.accountId === roundup.watchedAccountId &&
+           transactionData.class === 'payment' &&
+           transactionData.direction === 'debit';
+  })
 
-// Basic principal for everything: Just store the transactions in Firestore when available
-// While you do that, update user details as necessary
-//   * Should each transaction include how it got processed in roundup/other donation?
-//    * YES: less queries (potentially), more intuitive
-//    * NO: l
-//      * ALTERNATIVE: Have one pending payrequest for all items until last debit
-//         * INCLUDE reference from payrequest to Transaction object (usually will be queried in that direction)
+  filteredTransactions.forEach(async value => {
+    const transactionData = value[0];
+    const transactionDocRef = value[1];
+    const roundupAmount = roundupBy(transactionData.amount, roundup.roundTo);
 
-// Query cases:
-// * See which BasiqTransactions contributed to past/pending payment
-//   * get payment => get references => fetch references
-// * See pending payment => Alter how will contribute to payment
-//   * 
+    user.donationMethods.nextDebit.accruedAmount += roundupAmount;
+    user.donationMethods.nextDebit.donationSources.push({
+      basiqTransaction: transactionDocRef,
+      amount: roundupAmount,
+      method: 'roundup'
+    })
 
+    if (user.donationMethods.nextDebit.accruedAmount > roundup.debitAt) {
+      // Process the debit and create OnyaTransaction doc
+      await createOnyaTransaction(user.uid, basiqData.uid, user.donationMethods.nextDebit, user.charitySelection);
 
-// type PayRequest = {
-//   status,
-//   balance,
-//   transactions[]: {
-//     id/reference,
-//     amount,
-//     method (e.g. roundup)
-//     amountContributed,
-//     actually A LOT more fields to be able to render decently on web (date, institution, )
-        // So maybe store JUST AS REFERENCE
-//   }
-// }
+      // Then reset the accured amount
+      user.donationMethods.nextDebit.accruedAmount = 0;
+      user.donationMethods.nextDebit.donationSources = [];
+    }
+  })
+}
 
+const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit'], charitySelection: User['charitySelection']) => {
+  const onyaTransactionDocRef = onyaTransactionCollectionRef
+    .withConverter(onyaTransactionConverter)
+    .doc();
 
-// Refresh flow (background version, might need faster implementation for on-demand refresh):
-// Each time a user's connection is refreshed and fetch all transactions since, we do the following:
-//   pendingPayRequestDocCache;
-//   for (transaction in AllTransactions):
-//      add transactions as new doc under users.transactions collection
-//      for each donation method:
-//        if transaction should fit any donation methods:
-//          add reference to transaction doc in pendingPRDocCache
-//          add contribution details to NOT SURE (pendingPRDocCache doc or transaction doc)
-//          update amount in payrequest doc
-//          if payrequest hits limit for debit, then:
-//            update payrequest doc with cache
-//            create new pending payrequest
-//   after all transactions have been processed:
-//      update payrequest doc with cache
-//      create new pending payrequest
+  const payrequest = await createPayrequest(onyaTransactionDocRef.id, basiqUid, nextDebit.accruedAmount);
 
-// Examine a donation method:*
+  onyaTransactionDocRef.set({
+    basiqJobId: payrequest.id,
+    created: payrequest.created,
+    updated: payrequest.updated,
+    status: payrequest.status,
+    payer: {
+      userId: uid,
+      basiqUserId: payrequest.payer.payerUserId,
+      basiqAccountId: payrequest.payer.payerAccountId,
+      bankBranchCode: payrequest.payer.payerBankBranchCode,
+      bankAccountNumber: payrequest.payer.payerAccountNumber
+    },
+    description: payrequest.description,
+    amount: payrequest.amount,
+    charitySelection: charitySelection,
+    donationSources: nextDebit.donationSources
+  })
+
+  // This was supposed to add reference to transaction but this can also just
+  // be done through querying, so I'll just leave it out for now
+  // nextDebit.donationSources.forEach(donationSource => {
+  //   const transactionDocRef = donationSource.basiqTransaction;
+  //   transactionDocRef
+  //     .withConverter(basiqTransactionConverter)
+  //     .set({
+
+  //     }, { merge: true })
+  // })
+}

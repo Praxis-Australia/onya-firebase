@@ -252,7 +252,7 @@ export const submitPayRequest = async (accessToken: string, requestId: string, p
       requestId,
       payer: { payerUserId },
       description,
-      amount,
+      amount: amount.toFixed(2),
       ...collectFundsToFloat ? { collectFundsToFloat } : {},
       ...checkAccountBalance ? { checkAccountBalance } : {}
     } ] })
@@ -265,7 +265,7 @@ export const submitPayRequest = async (accessToken: string, requestId: string, p
   throw await getAPIError(res);
 }
 
-export const getPayRequest = async (accessToken: string, payrequestId: string): Promise<Payrequest> => {
+export const getPayrequest = async (accessToken: string, payrequestId: string): Promise<Payrequest> => {
   const url = 'https://au-api.basiq.io/payments/payrequests/';
   const options = {
     method: 'GET',

@@ -22,23 +22,19 @@ export const createUser = async (uid: string): Promise<void> => {
     charitySelection : new Map<string, number>(),
     firstName: null,
     lastName: null,
-    roundup:{
-        config:{
-            debitAt:10,
-            debitAccountId:null,
-            isEnabled:false,
-            roundTo: null,
-            watchedAccountId: null
-        },
-        nextDebit:{
-            accAmount:0,
-            lastChecked:null
-        },
-        statistics:{
-            total:0
-        }
+    donationMethods: {
+      roundup: {
+        debitAt:10,
+        debitAccountId:null,
+        isEnabled:false,
+        roundTo: null,
+        watchedAccountId: null
+      },
+      nextDebit: {
+        accruedAmount: 0,
+        donationSources: []
+      }
     },
-    transactions:[],
     uid: uid,
     userCreated: new Date()
   })

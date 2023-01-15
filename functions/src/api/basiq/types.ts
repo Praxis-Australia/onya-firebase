@@ -202,7 +202,7 @@ export interface Payrequest {
   created: Date,
   updated: Date,
   method: string,
-  status: 'success' | 'in-progress' | 'pending',
+  status: 'success' | 'in-progress' | 'pending' | 'failed',
   payer: {
     payerUserId: string,
     payerBankBranchCode?: string,
