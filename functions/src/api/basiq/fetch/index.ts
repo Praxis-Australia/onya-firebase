@@ -39,11 +39,9 @@ export class APIError<T extends ErrorInstance> extends Error {
 }
 
 // Formats Date object into YYYY-MM-DD for Basiq API
-const dateFormat = new Intl.DateTimeFormat('en-CA', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit'
-})
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0]
+}
 
 // Endpoints
 
@@ -167,20 +165,20 @@ export const listTransactions = async (accessToken: string, userId: string, limi
 
   if (typeof limit !== 'undefined') encodedQueryParams.set('limit', limit.toString());
   if (typeof filter !== 'undefined') {
-    let filterParamValue: string = Object.keys(filter).reduce((acc: string, key: string, index: number) => {
+    let filterParamValue: string = Object.keys(filter).reduce((acc: string, key: string) => {
       const value = filter[key as keyof ListTransactionsFilter]!;
 
       // Add comma at start if it's not the first key
 
       // For all cases where not transaction.postDate, filter for equality
-      if (typeof value === 'string') return `${acc}${acc ? ',' : ''}${key}.eq('${value}')`;
+      if (typeof value === 'string') return acc + `${acc ? ',' : ''}${key}.eq('${value}')`;
 
       // In the else case, the key is 'transaction.postDate'
       if (value.from) {
-        acc += `${acc}${acc ? ',' : ''}${key}.gteq('${dateFormat.format(value.from)}')`
+        acc += `${acc ? ',' : ''}${key}.gteq('${formatDate(value.from)}')`
       }
       if (value.to) {
-        acc += `${acc}${acc ? ',' : ''}${key}.lteq('${dateFormat.format(value.to)}')`
+        acc += `${acc ? ',' : ''}${key}.lteq('${formatDate(value.to)}')`
       }
       return acc
     },'');

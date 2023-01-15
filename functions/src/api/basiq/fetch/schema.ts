@@ -196,7 +196,7 @@ const parseNum = (num: string): number => {
 export const parseTransaction = (data: RawTransaction): outputSchema.Transaction => ({
   ...data,
   amount: parseNum(data.amount),
-  balance: parseNum(data.balance),
+  balance: data.balance ? parseNum(data.balance) : null,
   postDate: data.postDate ? parseDate(data.postDate) : null,
   transactionDate: data.transactionDate ? parseDate(data.transactionDate) : null
 })

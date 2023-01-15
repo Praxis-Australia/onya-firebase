@@ -35,7 +35,7 @@ export const listConnectionIds = async (basiqUid: string): Promise<Array<string>
   return connections.map(connection => connection.id);
 }
 
-export const listAccountsIdName = async (basiqUid: string): Promise<Array<BasiqAccount>> => {
+export const listAccounts = async (basiqUid: string): Promise<Array<BasiqAccount>> => {
   const res = await basiqFetch.listAccounts(await getBasiqToken(), basiqUid);
   const accounts = res.data;
   
@@ -44,7 +44,8 @@ export const listAccountsIdName = async (basiqUid: string): Promise<Array<BasiqA
     name: account.name,
     institution: account.institution,
     accountNumber: account.accountNo,
-  } as BasiqAccount));;
+    lastUpdated: account.lastUpdated
+  }));
 }
 
 export const listTransactions = async (userId: string, limit?: number, filter?: basiqFetch.ListTransactionsFilter, maxNextDepth=5): Promise<List<Transaction>> => {

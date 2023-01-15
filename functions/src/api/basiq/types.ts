@@ -13,7 +13,7 @@ export interface Transaction {
   id: string,
   account: string,
   amount: number,
-  balance: number,
+  balance: number | null,
   class: 
     'bank-fee' | 
     'payment' | 

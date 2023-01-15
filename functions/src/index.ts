@@ -1,14 +1,16 @@
 import * as functions from 'firebase-functions';
 import { initializeApp } from 'firebase-admin/app';
-require("firebase-functions/logger/compat");
+// require("firebase-functions/logger/compat");
 initializeApp();
 
 import { 
   createUser as createFirestoreUser,
+} from './services/user';
+import {
   getBasiqClientToken,
   initBasiqUser,
   refreshBasiqInfo
-} from './services/user';
+} from './services/basiq';
 
 const regionFunctions = functions.region('australia-southeast1')
 
