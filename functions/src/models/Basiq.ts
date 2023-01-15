@@ -1,4 +1,4 @@
-import { Transaction } from "../api/basiq/types";
+import { Enrich, Transaction } from "../api/basiq/types";
 
 export type BasiqData = 
   | BasiqDataNotConfigured
@@ -44,5 +44,9 @@ export interface BasiqTransaction {
   institutionId: string,
   postDate: Date | null,
   status: Transaction['status'],
-  transactionDate: Date | null
+  transactionDate: Date | null,
+  enrich: {
+    location: Enrich['location'],
+    merchant: Enrich['merchant']
+  }
 }

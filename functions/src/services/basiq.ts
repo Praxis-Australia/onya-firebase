@@ -164,7 +164,11 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, ca
         institutionId: transaction.institution,
         postDate: transaction.postDate,
         status: transaction.status,
-        transactionDate: transaction.transactionDate
+        transactionDate: transaction.transactionDate,
+        enrich: { 
+          location: transaction.enrich.location,
+          merchant: transaction.enrich.merchant,
+        }
       }
 
       const transactionRef = getBasiqTransactionsCollectionRef(userRef)

@@ -1,6 +1,5 @@
 // Following fields left broad because they're unsued
 // And because uncertainty over scheme
-// Transaction.enrich
 // Connection.profile
 
 // Quirk about transaction response
@@ -25,7 +24,7 @@ export interface Transaction {
     'interest' |
     'loan-repayment',
   direction: 'debit' | 'credit',
-  enrich?: { [key: string]: any}
+  enrich: Enrich
   institution: string,
   postDate: Date | null,
   status: 'pending' | 'posted',
@@ -34,6 +33,48 @@ export interface Transaction {
     account: string,
     institution: string,
     self: string
+  }
+}
+
+export interface Enrich {
+  category: { 
+    anzsic?: {
+      class?: {
+        title?: string,
+        code?: string
+      },
+      division?: {
+        titile?: string,
+        code?: string,
+      },
+      group?: {
+        titile?: string,
+        code?: string,
+      },
+      subdivision?: {
+        titile?: string,
+        code?: string,
+      }
+    } 
+  },
+  location: {
+    country?: string,
+    formattedAddress?: string,
+    geometry?: { lat?: string, lng?: string },
+    postalCode?: string,
+    route?: string,
+    routeNo?: string,
+    state?: string,
+    suburb?: string,
+  },
+  merchant: {
+    id: string,
+    businessName: string,
+    ABN: string,
+    logoMaster: string,
+    logoThumb: string,
+    phoneNumber?: { international?: string, local?: string },
+    website: string
   }
 }
 

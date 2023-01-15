@@ -226,7 +226,8 @@ export const basiqTransactionConverter: firestore.FirestoreDataConverter<BasiqTr
         institutionId: data.institutionId,
         postDate: data.postDate && data.postDate.toDate(),
         status: data.status,
-        transactionDate: data.transactionDate && data.transactionDate.todate()
+        transactionDate: data.transactionDate && data.transactionDate.todate(),
+        enrich: data.enrich
       };
     }
   }

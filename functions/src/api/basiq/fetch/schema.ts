@@ -18,7 +18,7 @@ interface RawTransaction {
     'interest' |
     'loan-repayment',
   direction: 'debit' | 'credit',
-  enrich?: { [key: string]: any}
+  enrich: RawEnrich,
   institution: string,
   postDate: string,
   status: 'pending' | 'posted',
@@ -29,6 +29,48 @@ interface RawTransaction {
     self: string
   }
 };
+
+interface RawEnrich {
+  category: { 
+    anzsic?: {
+      class?: {
+        title?: string,
+        code?: string
+      },
+      division?: {
+        titile?: string,
+        code?: string,
+      },
+      group?: {
+        titile?: string,
+        code?: string,
+      },
+      subdivision?: {
+        titile?: string,
+        code?: string,
+      }
+    } 
+  },
+  location: {
+    country?: string,
+    formattedAddress?: string,
+    geometry?: { lat?: string, lng?: string },
+    postalCode?: string,
+    route?: string,
+    routeNo?: string,
+    state?: string,
+    suburb?: string,
+  },
+  merchant: {
+    id: string,
+    businessName: string,
+    ABN: string,
+    logoMaster: string,
+    logoThumb: string,
+    phoneNumber?: { international?: string, local?: string },
+    website: string
+  }
+}
 
 interface RawAccount {
   type: 'account',
