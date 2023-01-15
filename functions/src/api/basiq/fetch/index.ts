@@ -9,9 +9,10 @@ import {
   User,
   Account,
   ErrorInstance401,
-  AuthToken
+  AuthToken,
+  Payrequest
 } from "../types"
-import { parseAccount, parseAuthToken, parseTransaction, parseUser } from "./schema";
+import { parseAccount, parseAuthToken, parsePayrequest, parseTransaction, parseUser } from "./schema";
 
 
 // Wrapper for working with fetch requests to Basiq API,
@@ -226,6 +227,58 @@ export const listTransactionsNext = async (accessToken: string, nextUrl: string)
     }
   };
   
+  throw await getAPIError(res);
+}
+
+interface SubmitPayRequestResponse {
+  jobs: [ { 
+    type: 'job',
+    id: string,
+    requestId: string,
+    links: { self: string }
+  } ]
+}
+
+export const submitPayRequest = async (accessToken: string, requestId: string, payerUserId: string, description: string, amount: number, collectFundsToFloat?: boolean, checkAccountBalance?: boolean): Promise<SubmitPayRequestResponse> => {
+  const url = 'https://au-api.basiq.io/payments/payrequests';
+  const options = {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ payrequests: [ {
+      requestId,
+      payer: { payerUserId },
+      description,
+      amount,
+      ...collectFundsToFloat ? { collectFundsToFloat } : {},
+      ...checkAccountBalance ? { checkAccountBalance } : {}
+    } ] })
+  };
+  
+  const res = await fetch(url, options);
+
+  if (res.ok) return await res.json();
+
+  throw await getAPIError(res);
+}
+
+export const getPayRequest = async (accessToken: string, payrequestId: string): Promise<Payrequest> => {
+  const url = 'https://au-api.basiq.io/payments/payrequests/';
+  const options = {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${accessToken}`
+    }
+  };
+
+  const res = await fetch(url, options);
+
+  if (res.ok) return parsePayrequest(await res.json());
+
   throw await getAPIError(res);
 }
 
