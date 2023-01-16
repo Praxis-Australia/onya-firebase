@@ -240,6 +240,33 @@ interface SubmitPayRequestResponse {
 }
 
 export const submitPayRequest = async (accessToken: string, requestId: string, payerUserId: string, description: string, amount: number, collectFundsToFloat?: boolean, checkAccountBalance?: boolean): Promise<SubmitPayRequestResponse> => {
+  // Basiq API has a weird bug where it only accepts amount as number, not string
+  // But it doesn't accept rounded up numbers (e.g. 12 instead of 12.00)
+  // Because JSON.stringify doesn't encode in this way, we implement custom solution
+  const body = `{
+    "payrequests": [
+      {
+        "payer": {
+              "payerUserId": "${payerUserId}"
+        },
+        "collectFundsToFloat": ${collectFundsToFloat ?? null},
+        "checkAccountBalance": ${checkAccountBalance ?? null},
+        "requestId": "${requestId}",
+        "description": "${description}",
+        "amount": ${amount.toFixed(2)}
+      }
+    ]
+  }`
+  
+  // JSON.stringify({ payrequests: [ {
+  //   requestId,
+  //   payer: { payerUserId },
+  //   description,
+  //   amount: amount.toFixed(2),
+  //   ...collectFundsToFloat ? { collectFundsToFloat } : {},
+  //   ...checkAccountBalance ? { checkAccountBalance } : {}
+  // } ] })
+
   const url = 'https://au-api.basiq.io/payments/payrequests';
   const options = {
     method: 'POST',
@@ -248,14 +275,7 @@ export const submitPayRequest = async (accessToken: string, requestId: string, p
       'content-type': 'application/json',
       authorization: `Bearer ${accessToken}`
     },
-    body: JSON.stringify({ payrequests: [ {
-      requestId,
-      payer: { payerUserId },
-      description,
-      amount: amount.toFixed(2),
-      ...collectFundsToFloat ? { collectFundsToFloat } : {},
-      ...checkAccountBalance ? { checkAccountBalance } : {}
-    } ] })
+    body: body
   };
   
   const res = await fetch(url, options);
@@ -266,7 +286,7 @@ export const submitPayRequest = async (accessToken: string, requestId: string, p
 }
 
 export const getPayrequest = async (accessToken: string, payrequestId: string): Promise<Payrequest> => {
-  const url = 'https://au-api.basiq.io/payments/payrequests/';
+  const url = `https://au-api.basiq.io/payments/payrequests/${payrequestId}`;
   const options = {
     method: 'GET',
     headers: {

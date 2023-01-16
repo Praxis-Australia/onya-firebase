@@ -83,8 +83,11 @@ export const createUser = async (mobile: string, email?: string, firstName?: str
 }
 
 export const createPayrequest = async (requestId: string, payerUserId: string, amount: number): Promise<Payrequest> => {
-  const res = await basiqFetch.submitPayRequest(await getBasiqToken(), requestId, payerUserId, `OnyaTransaction: ${requestId}`, Math.round(amount / 100), true, true);
+  const res = await basiqFetch.submitPayRequest(await getBasiqToken(), requestId, payerUserId, `Onya Direct Debit`, amount / 100, true, true);
   
+  // Wait one second to give Basiq time to process the request
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
   const payrequest = await basiqFetch.getPayrequest(await getBasiqToken(), res.jobs[0].id);
   
   return payrequest;

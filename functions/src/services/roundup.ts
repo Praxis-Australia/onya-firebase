@@ -22,10 +22,11 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
            transactionData.direction === 'debit';
   })
 
-  filteredTransactions.forEach(async value => {
+  // Converting to for-loop to reduce weirdness with async forEach
+  for (const value of filteredTransactions) {
     const transactionData = value[0];
     const transactionDocRef = value[1];
-    const roundupAmount = roundupBy(transactionData.amount, roundup.roundTo);
+    const roundupAmount = roundupBy(-1 * transactionData.amount, roundup.roundTo);
 
     user.donationMethods.nextDebit.accruedAmount += roundupAmount;
     user.donationMethods.nextDebit.donationSources.push({
@@ -39,19 +40,20 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
       await createOnyaTransaction(user.uid, basiqData.uid, user.donationMethods.nextDebit, user.charitySelection);
 
       // Then reset the accured amount
-      user.donationMethods.nextDebit.accruedAmount = 0;
-      user.donationMethods.nextDebit.donationSources = [];
+      user.donationMethods.nextDebit = {
+        accruedAmount: 0,
+        donationSources: []
+      };
     }
-  })
-
+  }
 
 // merge: true doesn't work because of how converter is implemented
 // So we don't use converter here
   await userCollectionRef
     .doc(user.uid)
-    .set({
-      donationMethods: user.donationMethods
-    }, { merge: true })
+    .update({
+      'donationMethods.nextDebit': user.donationMethods.nextDebit
+    })
 }
 
 const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit'], charitySelection: User['charitySelection']) => {
@@ -69,12 +71,12 @@ const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: U
     payer: {
       userId: uid,
       basiqUserId: payrequest.payer.payerUserId,
-      basiqAccountId: payrequest.payer.payerAccountId,
-      bankBranchCode: payrequest.payer.payerBankBranchCode,
-      bankAccountNumber: payrequest.payer.payerAccountNumber
+      ...payrequest.payer.payerAccountId ? { basiqAccountId: payrequest.payer.payerAccountId } : {},
+      ...payrequest.payer.payerBankBranchCode ? { bankBranchCode: payrequest.payer.payerBankBranchCode } : {},
+      ...payrequest.payer.payerAccountNumber ? { bankAccountNumber: payrequest.payer.payerAccountNumber } : {},
     },
     description: payrequest.description,
-    amount: payrequest.amount,
+    amount: Math.round(payrequest.amount * 100),
     charitySelection: charitySelection,
     donationSources: nextDebit.donationSources
   })
