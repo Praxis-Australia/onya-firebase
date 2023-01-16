@@ -32,6 +32,7 @@ const refreshBasiqToken = async (): Promise<string> => {
 }
 
 export const getBasiqToken = async () => {
+  // return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwYXJ0bmVyaWQiOiJhNzg5Mzg5Zi1hMmYxLTQ1MDMtODIxZC0yMzI2M2UzNmU3YTMiLCJhcHBsaWNhdGlvbmlkIjoiNjBlMzhmMGMtZGVjZS00ZDhjLWFmNTMtZjVlMTQwMDI3ZTNkIiwic2NvcGUiOiJTRVJWRVJfQUNDRVNTIiwic2FuZGJveF9hY2NvdW50IjpmYWxzZSwiY29ubmVjdF9zdGF0ZW1lbnRzIjpmYWxzZSwiZW5yaWNoIjoicGFpZCIsImVucmljaF9hcGlfa2V5IjoiQ3I5ZUFPVFJBdWFqSGdCZjhBMDRSMlhXcXJ1NEFzTkM3cVpOYnJIQiIsImVucmljaF9lbnRpdHkiOnRydWUsImVucmljaF9sb2NhdGlvbiI6dHJ1ZSwiZW5yaWNoX2NhdGVnb3J5Ijp0cnVlLCJhZmZvcmRhYmlsaXR5Ijoic2FuZGJveCIsImluY29tZSI6InNhbmRib3giLCJleHBlbnNlcyI6InNhbmRib3giLCJleHAiOjE2NzM4NDUwNTQsImlhdCI6MTY3Mzg0MTQ1NCwidmVyc2lvbiI6IjMuMCIsImRlbmllZF9wZXJtaXNzaW9ucyI6WzQzLDQyXX0.PthOAoYxnodVKBorhQT3tDGKKfA0KyYZqQKSv3W7ZdE";
   try {
     let latestToken: BasiqToken;
     if (global_access_token) {
@@ -45,7 +46,7 @@ export const getBasiqToken = async () => {
       }
     }
 
-    if (new Date().getTime() - latestToken.expires_at < 300 * 1000) {
+    if (latestToken.expires_at - new Date().getTime() > 5 * 60 * 1000) {
       console.log("returning cached basiq token")
       return latestToken.access_token;
     } else {

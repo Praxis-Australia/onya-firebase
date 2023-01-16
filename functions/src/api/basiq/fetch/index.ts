@@ -8,8 +8,11 @@ import {
   Transaction,
   User,
   Account,
-  ErrorInstance401
-} from "./schema"
+  ErrorInstance401,
+  AuthToken,
+  Payrequest
+} from "../types"
+import { parseAccount, parseAuthToken, parsePayrequest, parseTransaction, parseUser } from "./schema";
 
 
 // Wrapper for working with fetch requests to Basiq API,
@@ -17,17 +20,11 @@ import {
 // On top of normal fetch, it simplifies the following:
 // 1. Wraps HTTP error responses in custom APIError class
 // 2. Provides type signatures to function input and output
-// 3. Allow some parameters to be passed in as objects (e.g. Date)
+// 3. Allow input to be provided as JS objects (e.g. Date)
+// 4. Transform output primitives into JS objects (e.g. Date)
 
 // Unless the fetch request itself fails, all functions either
 // return a valid response or throw an API Error
-
-// Formats Date object into YYYY-MM-DD for Basiq API
-const dateFormat = new Intl.DateTimeFormat('en-CA', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit'
-})
 
 // Defines a custom APIError class for handling error responses
 export class APIError<T extends ErrorInstance> extends Error {
@@ -42,14 +39,14 @@ export class APIError<T extends ErrorInstance> extends Error {
   }
 }
 
-// API endpoints
-export interface PostAuthTokenResponse {
-  access_token: string,
-  expires_in: number,
-  token_type: string
+// Formats Date object into YYYY-MM-DD for Basiq API
+const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0]
 }
 
-export const postAuthToken = async (apiKey: string, basiqUid?: string): Promise<PostAuthTokenResponse> => {
+// Endpoints
+
+export const postAuthToken = async (apiKey: string, basiqUid?: string): Promise<AuthToken> => {
   const url = 'https://au-api.basiq.io/token';
 
   const encodedParams = new URLSearchParams();
@@ -73,7 +70,7 @@ export const postAuthToken = async (apiKey: string, basiqUid?: string): Promise<
 
   const res = await fetch(url, options);
 
-  if (res.ok) return res.json();
+  if (res.ok) return parseAuthToken(await res.json());
   
   throw await getAPIError(res);
 }
@@ -97,7 +94,7 @@ export const createUser = async (accessToken: string, mobile: string, email?: st
 
   const res = await fetch(url, options);
 
-  if (res.ok) return res.json();
+  if (res.ok) return parseUser(await res.json());
 
   throw await getAPIError(res);
 }
@@ -114,17 +111,12 @@ export const getUser = async (accessToken: string, userId: string): Promise<User
 
   const res = await fetch(url, options);
 
-  if (res.ok) return res.json();
+  if (res.ok) return parseUser(await res.json());
 
   throw await getAPIError(res);
 }
 
-export interface GetAccountsResponse {
-  type: 'list',
-  data: Array<Account>
-}
-
-export const listAccounts = async (accessToken: string, userId: string): Promise<GetAccountsResponse> => {
+export const listAccounts = async (accessToken: string, userId: string): Promise<{type: 'list', data: Account[]}> => {
   const url = `https://au-api.basiq.io/users/${userId}/accounts`;
   const options = {
     method: 'GET',
@@ -136,21 +128,26 @@ export const listAccounts = async (accessToken: string, userId: string): Promise
 
   const res = await fetch(url, options);
 
-  if (res.ok) return res.json();
+  if (res.ok) {
+    const data = await res.json();
+    return {
+      type: 'list', 
+      data: data.data.map(parseAccount)
+    }
+  };
 
   throw await getAPIError(res);
 }
 
-
-interface GetTransactionsResponse {
+interface ListTransactionsResponse {
   type: 'list',
   count: number,
   size: number,
-  data: Array<Transaction>,
+  data: Transaction[],
   links: { self: string, next?: string }
 }
 
-interface GetTransactionsFilter {
+export interface ListTransactionsFilter {
   'account.id'?: string,
   'transaction.status'?: Transaction["status"],
   'transaction.postDate'?: 
@@ -161,26 +158,28 @@ interface GetTransactionsFilter {
   'institution.id'?: string,
 }
 
-export const listTransactions = async (accessToken: string, userId: string, limit?: number, filter?: GetTransactionsFilter): Promise<GetTransactionsResponse> => {
+// Quirks about the endpoint:
+// - Can't filter to exact time/date, just to date
+export const listTransactions = async (accessToken: string, userId: string, limit?: number, filter?: ListTransactionsFilter): Promise<ListTransactionsResponse> => {
   const url = `https://au-api.basiq.io/users/${userId}/transactions`;
   const encodedQueryParams = new URLSearchParams();
 
   if (typeof limit !== 'undefined') encodedQueryParams.set('limit', limit.toString());
   if (typeof filter !== 'undefined') {
-    let filterParamValue: string = Object.keys(filter).reduce((acc: string, key: string, index: number) => {
-      const value = filter[key as keyof GetTransactionsFilter]!;
+    let filterParamValue: string = Object.keys(filter).reduce((acc: string, key: string) => {
+      const value = filter[key as keyof ListTransactionsFilter]!;
 
       // Add comma at start if it's not the first key
 
       // For all cases where not transaction.postDate, filter for equality
-      if (typeof value === 'string') return `${acc}${acc ? ',' : ''}${key}.eq('${value}')`;
+      if (typeof value === 'string') return acc + `${acc ? ',' : ''}${key}.eq('${value}')`;
 
       // In the else case, the key is 'transaction.postDate'
       if (value.from) {
-        acc += `${acc}${acc ? ',' : ''}${key}.gteq('${dateFormat.format(value.from)}')`
+        acc += `${acc ? ',' : ''}${key}.gteq('${formatDate(value.from)}')`
       }
       if (value.to) {
-        acc += `${acc}${acc ? ',' : ''}${key}.lteq('${dateFormat.format(value.to)}')`
+        acc += `${acc ? ',' : ''}${key}.lteq('${formatDate(value.to)}')`
       }
       return acc
     },'');
@@ -198,12 +197,18 @@ export const listTransactions = async (accessToken: string, userId: string, limi
 
   const res = await fetch(url + '?' + encodedQueryParams, options);
 
-  if (res.ok) return res.json();
+  if (res.ok) {
+    const data = await res.json();
+    return {
+      ...data,
+      data: data.data.map(parseTransaction)
+    }
+  };
   
   throw await getAPIError(res);
 }
 
-export const listTransactionsNext = async (accessToken: string, nextUrl: string): Promise<GetTransactionsResponse> => {
+export const listTransactionsNext = async (accessToken: string, nextUrl: string): Promise<ListTransactionsResponse> => {
   const options = {
     method: 'GET', 
     headers: { 
@@ -214,8 +219,86 @@ export const listTransactionsNext = async (accessToken: string, nextUrl: string)
 
   const res = await fetch(nextUrl, options);
 
-  if (res.ok) return res.json();
+  if (res.ok) {
+    const data = await res.json();
+    return {
+      ...data,
+      data: data.data.map(parseTransaction)
+    }
+  };
   
+  throw await getAPIError(res);
+}
+
+interface SubmitPayRequestResponse {
+  jobs: [ { 
+    type: 'job',
+    id: string,
+    requestId: string,
+    links: { self: string }
+  } ]
+}
+
+export const submitPayRequest = async (accessToken: string, requestId: string, payerUserId: string, description: string, amount: number, collectFundsToFloat?: boolean, checkAccountBalance?: boolean): Promise<SubmitPayRequestResponse> => {
+  // Basiq API has a weird bug where it only accepts amount as number, not string
+  // But it doesn't accept rounded up numbers (e.g. 12 instead of 12.00)
+  // Because JSON.stringify doesn't encode in this way, we implement custom solution
+  const body = `{
+    "payrequests": [
+      {
+        "payer": {
+              "payerUserId": "${payerUserId}"
+        },
+        "collectFundsToFloat": ${collectFundsToFloat ?? null},
+        "checkAccountBalance": ${checkAccountBalance ?? null},
+        "requestId": "${requestId}",
+        "description": "${description}",
+        "amount": ${amount.toFixed(2)}
+      }
+    ]
+  }`
+  
+  // JSON.stringify({ payrequests: [ {
+  //   requestId,
+  //   payer: { payerUserId },
+  //   description,
+  //   amount: amount.toFixed(2),
+  //   ...collectFundsToFloat ? { collectFundsToFloat } : {},
+  //   ...checkAccountBalance ? { checkAccountBalance } : {}
+  // } ] })
+
+  const url = 'https://au-api.basiq.io/payments/payrequests';
+  const options = {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      authorization: `Bearer ${accessToken}`
+    },
+    body: body
+  };
+  
+  const res = await fetch(url, options);
+
+  if (res.ok) return await res.json();
+
+  throw await getAPIError(res);
+}
+
+export const getPayrequest = async (accessToken: string, payrequestId: string): Promise<Payrequest> => {
+  const url = `https://au-api.basiq.io/payments/payrequests/${payrequestId}`;
+  const options = {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${accessToken}`
+    }
+  };
+
+  const res = await fetch(url, options);
+
+  if (res.ok) return parsePayrequest(await res.json());
+
   throw await getAPIError(res);
 }
 

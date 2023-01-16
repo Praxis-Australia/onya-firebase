@@ -1,51 +1,29 @@
-import { DocumentReference } from 'firebase-admin/firestore'
-import type { BasiqAccount, BasiqToken } from './Basiq';
+import type { BasiqData } from './Basiq';
+import { OnyaTransaction } from './OnyaTransaction';
 
+// Note: leaving out statistics field because it creates
+// Two sources of truth (first is sum of all the transaction docs
+// and second is the actual field)
+// Will re-add if this is too much of a performance issue
 export interface User {
-  basiq: BasiqConfig,
+  basiq: BasiqData,
   charitySelection: Map<string, number>,
   firstName: string | null,
   lastName: string | null,
-  roundup: Roundup,
-  transactions: Array<DocumentReference>,
+  donationMethods: {
+    roundup: RoundupConfig
+    nextDebit: {
+      accruedAmount: number,
+      donationSources: OnyaTransaction['donationSources'],
+    }
+  },
   uid: string,
   userCreated: Date
 }
 
-export type BasiqConfig = 
-  | BasiqConfigNotConfigured
-  | BasiqConfigUserCreated
-  | BasiqConfigComplete;
 
-export interface BasiqConfigNotConfigured {
-  configStatus: "NOT_CONFIGURED"
-}
-
-export interface BasiqConfigUserCreated {
-  configStatus: "BASIQ_USER_CREATED",
-  uid: string,
-  clientToken: BasiqToken
-}
-
-export interface BasiqConfigComplete {
-  configStatus: "COMPLETE",
-  availableAccounts: Array<BasiqAccount>,
-  connectionIds: Array<string>,
-  uid: string,
-  clientToken: BasiqToken
-}
-
-export interface Roundup {
-  config: RoundupConfig,
-  nextDebit: {
-    accAmount: number,
-    lastChecked: Date | null,
-  }
-  statistics: {
-    total: number,
-  }
-}
-
+// Need to remove debitAccountId and debitAt to somewhere else
+// If this is not roundup specific
 export type RoundupConfig =
   | RoundupConfigDisabled
   | RoundupConfigEnabled
