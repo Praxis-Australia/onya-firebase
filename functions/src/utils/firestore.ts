@@ -113,7 +113,7 @@ function matchesNextDebit(obj: any): boolean {
 function matchesDonationSource(obj: any): boolean {
   try {
     const validDonationMethods = ['roundup']
-    return (validDonationMethods.includes(obj.donationMethod) &&
+    return (validDonationMethods.includes(obj.method) &&
             typeof obj.amount === 'number' &&
             obj.basiqTransaction instanceof firestore.DocumentReference &&
             obj.basiqTransaction.parent.id === 'basiqTransactions')
