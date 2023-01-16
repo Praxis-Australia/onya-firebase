@@ -156,7 +156,18 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
     
     if (query.next) console.log(`Data not fully fetched. Next: ${query.next.link}`)
     const transactions = query.data;
-    const basiqTransactions = transactions.map(transaction => {
+
+    // We are doing this in a for-loop and push rather than Array.prototype methods
+    // Because it's wonky with async methods and for performance
+    const basiqTransactions: Array<[BasiqTransaction, DocumentReference<BasiqTransaction>]> = [];
+
+    for (const transaction of transactions) {
+      const transactionRef = getBasiqTransactionsCollectionRef(userRef)
+        .withConverter(basiqTransactionConverter)
+        .doc(transaction.id)
+
+      if ((await transactionRef.get()).exists) continue;
+
       const basiqTransaction: BasiqTransaction = {
         id: transaction.id,
         accountId: transaction.account,
@@ -175,17 +186,8 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
         }
       }
 
-      const transactionRef = getBasiqTransactionsCollectionRef(userRef)
-        .withConverter(basiqTransactionConverter)
-        .doc(transaction.id)
-
-      return [basiqTransaction, transactionRef] as [BasiqTransaction, DocumentReference<BasiqTransaction>];
-    }).filter(async transaction => {
-      // Really should find a cheaper way of checking this, i.e. via
-      // Storing a record in user.basiq property of all transactions added since start of day
-      return !(await transaction[1].get()).exists
-    })
-
+      basiqTransactions.push([basiqTransaction, transactionRef]);
+    }
 
     basiqTransactions.forEach(async transaction => {
       await transaction[1]
