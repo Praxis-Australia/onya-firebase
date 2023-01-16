@@ -12,6 +12,7 @@ import {
   refreshBasiqInfo
 } from './services/basiq';
 import { processRoundupTransactions } from './services/roundup';
+import { userCollectionRef } from './utils/firestore';
 
 const regionFunctions = functions.region('australia-southeast1')
 
@@ -57,3 +58,11 @@ export const getClientToken = regionFunctions.https.onCall(async (_, context) =>
     access_token: await getBasiqClientToken(uid)
   };
 })
+
+export const refreshAllUsersBasiqInfo = regionFunctions.pubsub.schedule('every 12 hours').onRun(async () => {
+  const users = await userCollectionRef.where('basiq.configStatus', '==', 'COMPLETE').get();
+  for (const user of users.docs) {
+    const userData = user.data();
+    await refreshBasiqInfo(userData.uid, true, processRoundupTransactions);
+  }
+});
