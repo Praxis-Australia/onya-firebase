@@ -148,10 +148,18 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
   availableAccounts.forEach(async account => {
     // For now, we only fetch posted transactions because of Basiq's API
     // ambiguity around how pending transactions work
+    let fetchFrom = account.lastUpdated;
+    if (basiq.configStatus === 'COMPLETE') {
+      const previousMatchingAccount = basiq.availableAccounts.find(item => item.id === account.id);
+      if (previousMatchingAccount) {
+        fetchFrom = previousMatchingAccount.lastUpdated;
+      }
+    }
+
     const query = await listTransactions(basiq.uid, undefined, { 
       'account.id': account.id,
       'transaction.status': 'posted',
-      'transaction.postDate': { from: account.lastUpdated }
+      'transaction.postDate': { from: fetchFrom }
     });
     
     if (query.next) console.log(`Data not fully fetched. Next: ${query.next.link}`)
