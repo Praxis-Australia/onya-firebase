@@ -72,7 +72,7 @@ if (user.basiq.configStatus === "NOT_CONFIGURED") {
 
 const clientToken = user.basiq.clientToken;
 
-if (new Date().getTime() - clientToken.expires_at < 300 * 1000) {
+if (clientToken.expires_at - new Date().getTime() > 5 * 60 * 1000) {
   console.log("returning cached basiq client token")
   return clientToken.access_token;
 } else {
