@@ -1,5 +1,9 @@
-export const roundupBy = (amount: number, roundTo: number): number => {
-  return roundTo - (amount % roundTo);
+export const roundupBy = (amount: number, roundTo: number, doRoundFull=false): number => {
+  if (doRoundFull) {
+    return roundTo - (amount % roundTo);
+  } else {
+    return (roundTo - (amount % roundTo)) % roundTo;
+  }
 }
 
 // export const getTotalRoundupAmount = (transactionList: BasiqTransaction[], roundupConfig: RoundupConfigEnabled): number => {
