@@ -32,12 +32,13 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
     user.donationMethods.nextDebit.donationSources.push({
       basiqTransaction: transactionDocRef,
       amount: roundupAmount,
-      method: 'roundup'
+      method: 'roundup',
+      charitySelection: user.charitySelection
     })
 
     if (user.donationMethods.nextDebit.accruedAmount > roundup.debitAt) {
       // Process the debit and create OnyaTransaction doc
-      await createOnyaTransaction(user.uid, basiqData.uid, user.donationMethods.nextDebit, user.charitySelection);
+      await createOnyaTransaction(user.uid, basiqData.uid, user.donationMethods.nextDebit);
 
       // Then reset the accured amount
       user.donationMethods.nextDebit = {
@@ -56,7 +57,7 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
     })
 }
 
-const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit'], charitySelection: User['charitySelection']) => {
+const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit'], charitySelection?: User['charitySelection']) => {
   const onyaTransactionDocRef = onyaTransactionCollectionRef
     .withConverter(onyaTransactionConverter)
     .doc();
@@ -77,7 +78,6 @@ const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: U
     },
     description: payrequest.description,
     amount: Math.round(payrequest.amount * 100),
-    charitySelection: charitySelection,
     donationSources: nextDebit.donationSources
   })
 

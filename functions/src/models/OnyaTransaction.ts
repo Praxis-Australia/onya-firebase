@@ -16,10 +16,10 @@ export interface OnyaTransaction {
   },
   description: string,
   amount: number,
-  charitySelection: User['charitySelection'],
   donationSources: {
     basiqTransaction: DocumentReference<BasiqTransaction>,
     method: 'roundup',
-    amount: number
+    amount: number,
+    charitySelection: User['charitySelection']
   }[]
 }
