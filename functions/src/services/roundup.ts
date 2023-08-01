@@ -57,14 +57,14 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
     })
 }
 
-const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit'], charitySelection?: User['charitySelection']) => {
+const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit']) => {
   const onyaTransactionDocRef = onyaTransactionCollectionRef
     .withConverter(onyaTransactionConverter)
     .doc();
 
   const payrequest = await createPayrequest(onyaTransactionDocRef.id, basiqUid, nextDebit.accruedAmount);
 
-  onyaTransactionDocRef.set({
+  onyaTransactionDocRef.withConverter(onyaTransactionConverter).set({
     basiqJobId: payrequest.id,
     created: payrequest.created,
     updated: payrequest.updated,
@@ -79,7 +79,7 @@ const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: U
     description: payrequest.description,
     amount: Math.round(payrequest.amount * 100),
     donationSources: nextDebit.donationSources
-  })
+  });
 
   // This was supposed to add reference to transaction but this can also just
   // be done through querying, so I'll just leave it out for now

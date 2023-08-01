@@ -36,7 +36,8 @@ export const createUser = async (uid: string): Promise<void> => {
       }
     },
     uid: uid,
-    userCreated: new Date()
+    userCreated: new Date(),
+    email: null
   })
     .catch((err) => {
       throw new https.HttpsError('internal', 'Error writing user to Firestore', err);

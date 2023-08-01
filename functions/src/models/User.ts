@@ -18,7 +18,8 @@ export interface User {
     }
   },
   uid: string,
-  userCreated: Date
+  userCreated: Date,
+  email: string | null
 }
 
 

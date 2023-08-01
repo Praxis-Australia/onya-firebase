@@ -69,7 +69,8 @@ export const userDocConverter: firestore.FirestoreDataConverter<User> = {
           nextDebit: data.donationMethods.nextDebit
         },
         uid: data.uid,
-        userCreated: data.userCreated.toDate()
+        userCreated: data.userCreated.toDate(),
+        email: data.email
       };
     }
   }
@@ -88,13 +89,14 @@ export function matchesBasiqToken(obj: any): boolean {
 function matchesUser(obj: any): boolean {
   try {
     return (matchesBasiqData(obj.basiq) &&
-            Object.values(obj.charitySelection).every(value => typeof value === 'number') &&
+            matchesCharitySelection(obj.charitySelection) &&
             (obj.firstName == null || typeof obj.firstName === 'string') &&
             (obj.lastName == null || typeof obj.lastName === 'string') &&
             matchesNextDebit(obj.donationMethods.nextDebit) &&
             matchesRoundupConfig(obj.donationMethods.roundup) &&
             typeof obj.uid === 'string' &&
-            obj.userCreated instanceof firestore.Timestamp);
+            obj.userCreated instanceof firestore.Timestamp &&
+            (obj.email == null || typeof obj.email === 'string'));
   } catch (_) {
     return false;
   }
@@ -110,13 +112,23 @@ function matchesNextDebit(obj: any): boolean {
   }
 }
 
+function matchesCharitySelection(obj: any): boolean {
+  try {
+    return Object.values(obj).every(value => typeof value === 'number') &&
+           Object.keys(obj).every(key => typeof key === 'string');
+  } catch (_) {
+    return false;
+  }
+}
+
 function matchesDonationSource(obj: any): boolean {
   try {
     const validDonationMethods = ['roundup']
     return (validDonationMethods.includes(obj.method) &&
             typeof obj.amount === 'number' &&
             obj.basiqTransaction instanceof firestore.DocumentReference &&
-            obj.basiqTransaction.parent.id === 'basiqTransactions')
+            obj.basiqTransaction.parent.id === 'basiqTransactions' &&
+            matchesCharitySelection(obj.charitySelection))
   } catch (_) {
     return false;
   }
@@ -274,8 +286,7 @@ export const onyaTransactionConverter: firestore.FirestoreDataConverter<OnyaTran
     return {
       ...onyaTransaction,
       created: firestore.Timestamp.fromDate(onyaTransaction.created),
-      updated: firestore.Timestamp.fromDate(onyaTransaction.updated),
-      charitySelection: Object.fromEntries(onyaTransaction.charitySelection)
+      updated: firestore.Timestamp.fromDate(onyaTransaction.updated)
     };
   },
   fromFirestore(snapshot: firestore.QueryDocumentSnapshot): OnyaTransaction {
@@ -291,7 +302,6 @@ export const onyaTransactionConverter: firestore.FirestoreDataConverter<OnyaTran
         payer: data.payer,
         description: data.description,
         amount: data.amount,
-        charitySelection: new Map<string, number>(Object.entries(data.charitySelection)),
         donationSources: data.donationSources,
       };
     }
@@ -313,7 +323,6 @@ function matchesOnyaTransaction(obj: any): boolean {
             (obj.payer.bankAccountNumber == null || typeof obj.payer.bankAccountNumber === 'string') &&
             typeof obj.description === 'string' &&
             typeof obj.amount === 'number' &&
-            Object.values(obj.charitySelection).every(value => typeof value === 'number') &&
             Array.isArray(obj.donationSources) &&
             obj.donationSources.every(matchesDonationSource))
   } catch (_) {

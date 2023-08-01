@@ -32,11 +32,11 @@ export const createBasiqUser = regionFunctions.https.onCall(async (data, context
 
   const { uid } = context.auth;
   const { phone_number } = context.auth.token;
-  const { firstName, lastName } = data;
+  const { firstName, lastName, email } = data;
 
   console.log("creating Basiq user")
   
-  await initBasiqUser(uid, phone_number, firstName, lastName);
+  await initBasiqUser(uid, phone_number, firstName, lastName, email);
 })
 
 export const refreshUserBasiqInfo = regionFunctions.https.onCall(async (_, context) => {
