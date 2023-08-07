@@ -7,8 +7,8 @@ export interface FirestoreUser {
   firstName: User['firstName'],
   lastName: User['lastName'],
   email: User['email'],
-  charitySelection: User['charitySelection'],
   donationMethods: User['donationMethods'],
+  charitySelection: User['charitySelection'],
   
   userCreated: Timestamp,
   basiq: FirestoreBasiqData,

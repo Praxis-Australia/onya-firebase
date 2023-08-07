@@ -21,7 +21,7 @@ export const createUser = async (userCollection: CollectionReference<User>, uid:
     basiq:{
       configStatus: "NOT_CONFIGURED"
     },
-    charitySelection : new Map<string, number>(),
+    charitySelection : {},
     firstName: null,
     lastName: null,
     donationMethods: {

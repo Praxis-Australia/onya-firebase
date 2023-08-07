@@ -7,7 +7,9 @@ import type { BasiqData, BasiqTransaction } from './Basiq';
 // Will re-add if this is too much of a performance issue
 export interface User {
   basiq: BasiqData,
-  charitySelection: Map<string, number>,
+  charitySelection: {
+    [charityId: string]: number
+  },
   firstName: string | null,
   lastName: string | null,
   donationMethods: {
