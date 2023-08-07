@@ -1,6 +1,4 @@
-import { DocumentReference } from "firebase-admin/firestore"
-import { BasiqTransaction } from "./Basiq"
-import { User } from "./User"
+import { DonationSources } from "./User"
 
 export interface OnyaTransaction {
   basiqJobId: string,
@@ -16,10 +14,5 @@ export interface OnyaTransaction {
   },
   description: string,
   amount: number,
-  donationSources: {
-    basiqTransaction: DocumentReference<BasiqTransaction>,
-    method: 'roundup',
-    amount: number,
-    charitySelection: User['charitySelection']
-  }[]
+  donationSources: DonationSources[]
 }

@@ -1,19 +1,24 @@
-import { DocumentReference } from "firebase-admin/firestore";
-import { createPayrequest } from "../api/basiq";
-import { BasiqDataComplete, BasiqTransaction } from "../models/Basiq";
+import { CollectionReference, DocumentReference } from "firebase-admin/firestore";
+import { BasiqTransaction } from "../models/Basiq";
 import { User } from "../models/User";
-import { onyaTransactionCollectionRef, onyaTransactionConverter, userCollectionRef } from "../utils/firestore";
 import { roundupBy } from "../utils/roundup";
+import { OnyaTransaction } from "../models/OnyaTransaction";
+import { Payrequest } from "../api/basiq/types";
 
 
 // Should really turn User into a class rather than just an interface
 // So I can have access to DocRef and whatnot
-export const processRoundupTransactions = async (user: User, basiqTransactions: Array<[BasiqTransaction, DocumentReference<BasiqTransaction>]>) => {
+export const processRoundupTransactions = (
+  createPayrequest: (requestId: string, payerUserId: string, amount: number) => Promise<Payrequest>,
+  onyaTransactionCollection: CollectionReference<OnyaTransaction>,
+  userDocRef: DocumentReference<User>,
+) => async (
+  user: User, 
+  basiqTransactions: Array<[BasiqTransaction, DocumentReference<BasiqTransaction>]>,
+) => {
   const roundup = user.donationMethods.roundup;
   
   if (!roundup.isEnabled) return;
-
-  const basiqData = user.basiq as BasiqDataComplete;
 
   let filteredTransactions = basiqTransactions.filter(value => {
     const transactionData = value[0];
@@ -38,7 +43,11 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
 
     if (user.donationMethods.nextDebit.accruedAmount > roundup.debitAt) {
       // Process the debit and create OnyaTransaction doc
-      await createOnyaTransaction(user.uid, basiqData.uid, user.donationMethods.nextDebit);
+      await createOnyaTransaction(
+        onyaTransactionCollection,
+        createPayrequest,
+        user
+        );
 
       // Then reset the accured amount
       user.donationMethods.nextDebit = {
@@ -48,29 +57,31 @@ export const processRoundupTransactions = async (user: User, basiqTransactions: 
     }
   }
 
-// merge: true doesn't work because of how converter is implemented
-// So we don't use converter here
-  await userCollectionRef
-    .doc(user.uid)
-    .update({
-      'donationMethods.nextDebit': user.donationMethods.nextDebit
-    })
+  await userDocRef.set(user);
 }
 
-const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: User['donationMethods']['nextDebit']) => {
-  const onyaTransactionDocRef = onyaTransactionCollectionRef
-    .withConverter(onyaTransactionConverter)
-    .doc();
+const createOnyaTransaction = async (
+  onyaTransactionCollection: CollectionReference<OnyaTransaction>,
+  createPayrequest: (requestId: string, payerUserId: string, amount: number) => Promise<Payrequest>,
+  user: User
+) => {
+  if (user.basiq.configStatus === 'NOT_CONFIGURED') throw new Error('Basiq not configured');
 
-  const payrequest = await createPayrequest(onyaTransactionDocRef.id, basiqUid, nextDebit.accruedAmount);
+  const onyaTransactionDocRef = onyaTransactionCollection.doc();
 
-  onyaTransactionDocRef.withConverter(onyaTransactionConverter).set({
+  const payrequest = await createPayrequest(
+    onyaTransactionDocRef.id, 
+    user.basiq.uid, 
+    user.donationMethods.nextDebit.accruedAmount
+  );
+
+  onyaTransactionDocRef.set({
     basiqJobId: payrequest.id,
     created: payrequest.created,
     updated: payrequest.updated,
     status: payrequest.status,
     payer: {
-      userId: uid,
+      userId: user.uid,
       basiqUserId: payrequest.payer.payerUserId,
       ...payrequest.payer.payerAccountId ? { basiqAccountId: payrequest.payer.payerAccountId } : {},
       ...payrequest.payer.payerBankBranchCode ? { bankBranchCode: payrequest.payer.payerBankBranchCode } : {},
@@ -78,17 +89,6 @@ const createOnyaTransaction = async (uid: string, basiqUid: string, nextDebit: U
     },
     description: payrequest.description,
     amount: Math.round(payrequest.amount * 100),
-    donationSources: nextDebit.donationSources
+    donationSources: user.donationMethods.nextDebit.donationSources
   });
-
-  // This was supposed to add reference to transaction but this can also just
-  // be done through querying, so I'll just leave it out for now
-  // nextDebit.donationSources.forEach(donationSource => {
-  //   const transactionDocRef = donationSource.basiqTransaction;
-  //   transactionDocRef
-  //     .withConverter(basiqTransactionConverter)
-  //     .set({
-
-  //     }, { merge: true })
-  // })
 }

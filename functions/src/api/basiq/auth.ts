@@ -1,59 +1,52 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
-import { BasiqToken } from '../../models/Basiq';
-import { basiqTokenConverter, basiqTokenDocRef } from '../../utils/firestore';
+import { BasiqAuthToken } from '../../models/Basiq';
 import { postAuthToken } from './fetch';
+import { DocumentReference } from 'firebase-admin/firestore';
 
-let global_access_token: BasiqToken;
-
-const refreshBasiqToken = async (): Promise<string> => {
-  if (!process.env.BASIQ_API_KEY) {
-    logger.error(`Basiq API key not set in env`);
-    throw new HttpsError('not-found', 'Basiq API key not set in env');
-  }
-
-  const { access_token, expires_in } = await postAuthToken(process.env.BASIQ_API_KEY);
+const refreshBasiqToken = async (
+  basiqApiKey: string, 
+  authTokenDoc?: DocumentReference<BasiqAuthToken>
+): Promise<BasiqAuthToken> => {
+  const { access_token, expires_in } = await postAuthToken(basiqApiKey);
   const expires_at  = new Date().getTime() + expires_in * 1000
 
-  logger.info(`Fetched new Basiq token, expires at ${expires_at}`);
+  if (typeof authTokenDoc !== 'undefined') {
+    await authTokenDoc
+      .set({
+        access_token,
+        expires_at
+      } as BasiqAuthToken)
+      .catch(e => {
+        logger.error(`Error writing Basiq token to Firestore`, e);
+        throw new HttpsError('internal', 'Error writing Basiq token to Firestore', e);
+      })
+  }
 
-  await basiqTokenDocRef
-    .withConverter(basiqTokenConverter)
-    .set({
-      access_token,
-      expires_at
-    } as BasiqToken)
-    .catch(e => {
-      logger.error(`Error writing Basiq token to Firestore`, e);
-      throw new HttpsError('internal', 'Error writing Basiq token to Firestore', e);
-    })
-
-  return access_token;
+  return {
+    access_token,
+    expires_at
+  };
 }
 
-export const getBasiqToken = async () => {
-  try {
-    let latestToken: BasiqToken;
-    if (global_access_token) {
-      latestToken = global_access_token;
-    } else {
-      const docSnapshot = await basiqTokenDocRef.get();
-      if (docSnapshot.exists) {
-        latestToken = docSnapshot.data() as BasiqToken;
-      } else {
-        logger.error(`Basiq token not found in Firestore`);
-        throw new HttpsError('not-found', 'Basiq token not found in Firestore');
-      }
-    }
+export const getBasiqAuthToken = async (
+  basiqApiKey: string, 
+  authTokenDoc?: DocumentReference<BasiqAuthToken>
+): Promise<BasiqAuthToken> => {
+  if (typeof authTokenDoc === 'undefined') {
+    return refreshBasiqToken(basiqApiKey);
+  }
 
-    if (latestToken.expires_at - new Date().getTime() > 5 * 60 * 1000) {
-      return latestToken.access_token;
-    } else {
-      logger.info(`Basiq token expired, fetching new token`);
-      throw new Error("Basiq token expired");
-    }
-  } catch (err) {
-    logger.info(`Error fetching Basiq token, fetching new token`);
-    return await refreshBasiqToken();
+  const docSnapshot = await authTokenDoc.get();
+  if (!docSnapshot.exists) {
+    return refreshBasiqToken(basiqApiKey, authTokenDoc);
+  }
+  
+  const latestToken = docSnapshot.data()!;
+  const isAuthTokenValid = latestToken.expires_at - new Date().getTime() > 5 * 60 * 1000;
+  if (!isAuthTokenValid) {
+    return refreshBasiqToken(basiqApiKey, authTokenDoc);
+  } else {
+    return latestToken;
   }
 };

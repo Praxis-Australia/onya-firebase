@@ -1,5 +1,5 @@
-import type { BasiqData } from './Basiq';
-import { OnyaTransaction } from './OnyaTransaction';
+import { DocumentReference } from 'firebase-admin/firestore';
+import type { BasiqData, BasiqTransaction } from './Basiq';
 
 // Note: leaving out statistics field because it creates
 // Two sources of truth (first is sum of all the transaction docs
@@ -14,7 +14,7 @@ export interface User {
     roundup: RoundupConfig
     nextDebit: {
       accruedAmount: number,
-      donationSources: OnyaTransaction['donationSources'],
+      donationSources: DonationSources[],
     }
   },
   uid: string,
@@ -22,6 +22,12 @@ export interface User {
   email: string | null
 }
 
+export interface DonationSources {
+  basiqTransaction: DocumentReference<BasiqTransaction>,
+  method: 'roundup',
+  amount: number,
+  charitySelection: User['charitySelection']
+}
 
 // Need to remove debitAccountId and debitAt to somewhere else
 // If this is not roundup specific

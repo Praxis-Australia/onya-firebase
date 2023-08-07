@@ -2,15 +2,18 @@
   "compilerOptions": {
     "module": "CommonJS",
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
     "target": "es2017",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "noUnusedParameters": false,
+    "allowUnusedLabels": false,
   },
   "compileOnSave": true,
   "include": [
     "src"
   ]
 }
+ 

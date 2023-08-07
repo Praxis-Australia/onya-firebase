@@ -12,17 +12,17 @@ export interface BasiqDataNotConfigured {
 export interface BasiqDataUserCreated {
   configStatus: "BASIQ_USER_CREATED",
   uid: string,
-  clientToken: BasiqToken
+  clientToken: BasiqAuthToken
 }
 
 export interface BasiqDataComplete {
   configStatus: "COMPLETE",
   availableAccounts: Array<BasiqAccount>,
   uid: string,
-  clientToken: BasiqToken
+  clientToken: BasiqAuthToken
 }
 
-export interface BasiqToken {
+export interface BasiqAuthToken {
   access_token: string;
   expires_at: number;
 }

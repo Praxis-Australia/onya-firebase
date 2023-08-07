@@ -1,11 +1,12 @@
 import { logger } from "firebase-functions";
-import { userCollectionRef, userDocConverter } from "../utils/firestore";
 import { HttpsError } from "firebase-functions/v2/https";
+import { CollectionReference } from "firebase-admin/firestore";
+import { User } from "../models/User";
 
-export const createUser = async (uid: string): Promise<void> => {
-  const docRef = userCollectionRef.doc(uid);
+// Create a UserService class which is exported
+export const createUser = async (userCollection: CollectionReference<User>, uid: string) => {
+  const docRef = userCollection.doc(uid);
   const docSnapshot = await docRef
-    .withConverter(userDocConverter)
     .get()
     .catch(err => {
       logger.error(`Error fetching user from Firestore`, err);
@@ -16,7 +17,7 @@ export const createUser = async (uid: string): Promise<void> => {
     throw new HttpsError('already-exists', 'User already exists', docSnapshot.data());
   }
 
-  await docRef.withConverter(userDocConverter).set({
+  await docRef.set({
     basiq:{
       configStatus: "NOT_CONFIGURED"
     },
