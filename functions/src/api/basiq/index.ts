@@ -1,4 +1,4 @@
-import { https } from 'firebase-functions';
+import { HttpsError } from 'firebase-functions/v2/https';
 import type { BasiqAccount } from '../../models/Basiq';
 import { getBasiqToken } from './auth';
 import * as basiqFetch from './fetch';
@@ -16,7 +16,7 @@ import { List, Payrequest, Transaction, User } from './types';
 
 export const postClientAuthToken = async (basiqUid: string) => {
   if (!process.env.BASIQ_API_KEY) {
-    throw new https.HttpsError('not-found', 'Basiq API key not set in env');
+    throw new HttpsError('not-found', 'Basiq API key not set in env');
   }
   
   const { access_token, expires_in } = await basiqFetch.postAuthToken(process.env.BASIQ_API_KEY, basiqUid);

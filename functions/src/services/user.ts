@@ -1,6 +1,6 @@
-import { https } from 'firebase-functions';
+import { logger } from "firebase-functions";
 import { userCollectionRef, userDocConverter } from "../utils/firestore";
-
+import { HttpsError } from "firebase-functions/v2/https";
 
 export const createUser = async (uid: string): Promise<void> => {
   const docRef = userCollectionRef.doc(uid);
@@ -8,11 +8,12 @@ export const createUser = async (uid: string): Promise<void> => {
     .withConverter(userDocConverter)
     .get()
     .catch(err => {
-      throw new https.HttpsError('unavailable', 'Network error connecting with Firestore', err);
+      logger.error(`Error fetching user from Firestore`, err);
+      throw new HttpsError('unavailable', 'Network error connecting with Firestore', err);
     });
 
   if (docSnapshot.exists) {
-    throw new https.HttpsError('already-exists', 'User already exists', docSnapshot.data());
+    throw new HttpsError('already-exists', 'User already exists', docSnapshot.data());
   }
 
   await docRef.withConverter(userDocConverter).set({
@@ -40,6 +41,7 @@ export const createUser = async (uid: string): Promise<void> => {
     email: null
   })
     .catch((err) => {
-      throw new https.HttpsError('internal', 'Error writing user to Firestore', err);
+      logger.error(`Error writing user to Firestore`, err);
+      throw new HttpsError('internal', 'Error writing user to Firestore', err);
     });
 }

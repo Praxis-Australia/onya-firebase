@@ -1,6 +1,12 @@
+import { HttpsError } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions';
 import type { BasiqData, BasiqTransaction } from '../models/Basiq';
-import { basiqTransactionConverter, getBasiqTransactionsCollectionRef, userCollectionRef, userDocConverter } from "../utils/firestore";
-import { https } from 'firebase-functions';
+import { 
+  basiqTransactionConverter, 
+  getBasiqTransactionsCollectionRef, 
+  userCollectionRef, 
+  userDocConverter 
+} from "../utils/firestore";
 import { 
   createUser as createBasiqUser,  
   listAccounts, 
@@ -13,18 +19,18 @@ import { User } from '../models/User';
 export const initBasiqUser = async (uid: string, mobile: string, firstName?: string, lastName?: string, email?: string, allowOverwrite=false): Promise<void> => {
   const userSnapshot = await userCollectionRef.doc(uid).get()
     .catch(err => {
-      throw new https.HttpsError('unavailable', 'Network error connecting with Firestore', err);
+      logger.error(`Error fetching user from Firestore`, err);
+      throw new HttpsError('unavailable', 'Network error connecting with Firestore', err);
     });
     
   if (!userSnapshot.exists) {
-    throw new https.HttpsError('not-found', 'User document does not exist in Firestore');
+    throw new HttpsError('not-found', 'User document does not exist in Firestore');
   }
   
-  // Throws https.HTTPError is the doc doesn't match User type
   const user = userSnapshot.data()!;
 
   if (!allowOverwrite && user.basiq.configStatus !== 'NOT_CONFIGURED') {
-    throw new https.HttpsError('already-exists', 'A Basiq user has already been created for this user');
+    throw new HttpsError('already-exists', 'A Basiq user has already been created for this user');
   }
 
   const data = await createBasiqUser(mobile, email, firstName, lastName);
@@ -47,52 +53,57 @@ export const initBasiqUser = async (uid: string, mobile: string, firstName?: str
       }
     })
     .catch((err) => {
-      throw new https.HttpsError('internal', 'Error writing user to Firestore', err);
+      logger.error(`Error writing user to Firestore`, err);
+      throw new HttpsError('internal', 'Error writing user to Firestore', err);
     });
 }
 
 export const getBasiqClientToken = async (uid: string): Promise<string> => {
-const userRef = userCollectionRef.doc(uid);
-const userSnapshot = await userRef
-  .withConverter(userDocConverter)
-  .get()
-  .catch(err => {
-    throw new https.HttpsError('unavailable', 'Network error connecting with Firestore', err);
-  });
-  
-if (!userSnapshot.exists) {
-  throw new https.HttpsError('not-found', 'User document does not exist in Firestore');
-}
-
-const user = userSnapshot.data()!;
-
-if (user.basiq.configStatus === "NOT_CONFIGURED") {
-  throw new https.HttpsError('failed-precondition', 'A Basiq user has not been created for this user');
-}
-
-const clientToken = user.basiq.clientToken;
-
-if (clientToken.expires_at - new Date().getTime() > 5 * 60 * 1000) {
-  console.log("returning cached basiq client token")
-  return clientToken.access_token;
-} else {
-  const { access_token, expires_at } = await postClientAuthToken(user.basiq.uid);
-
-  await userRef
+  const userRef = userCollectionRef.doc(uid);
+  const userSnapshot = await userRef
     .withConverter(userDocConverter)
-    .set({
-      ...user,
-      basiq: {
-        ...user.basiq,
-        clientToken: {
-          access_token,
-          expires_at
-        }
-      }
-    })
+    .get()
+    .catch(err => {
+      logger.error(`Error fetching user from Firestore`, err);
+      throw new HttpsError('unavailable', 'Network error connecting with Firestore', err);
+    });
+    
+  if (!userSnapshot.exists) {
+    throw new HttpsError('not-found', 'User document does not exist in Firestore');
+  }
 
-  return access_token;
-}
+  const user = userSnapshot.data()!;
+
+  if (user.basiq.configStatus === "NOT_CONFIGURED") {
+    throw new HttpsError('failed-precondition', 'A Basiq user has not been created for this user');
+  }
+
+  const clientToken = user.basiq.clientToken;
+
+  if (clientToken.expires_at - new Date().getTime() > 5 * 60 * 1000) {
+    return clientToken.access_token;
+  } else {
+    const { access_token, expires_at } = await postClientAuthToken(user.basiq.uid);
+
+    await userRef
+      .withConverter(userDocConverter)
+      .set({
+        ...user,
+        basiq: {
+          ...user.basiq,
+          clientToken: {
+            access_token,
+            expires_at
+          }
+        }
+      })
+      .catch((err) => {
+        logger.error(`Error writing user to Firestore`, err);
+        throw new HttpsError('internal', 'Error writing user to Firestore', err);
+      });
+
+    return access_token;
+  }
 }
 
 
@@ -103,19 +114,19 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
     .withConverter(userDocConverter)
     .get()
     .catch(err => {
-      throw new https.HttpsError('unavailable', 'Network error connecting with Firestore', err);
+      logger.error(`Error fetching user from Firestore`, err);
+      throw new HttpsError('unavailable', 'Network error connecting with Firestore', err);
     });
 
   if (!userSnapshot.exists) {
-    throw new https.HttpsError('not-found', 'User document does not exist in Firestore');
+    throw new HttpsError('not-found', 'User document does not exist in Firestore');
   }
 
-  // Throws https.HTTPError is the doc doesn't match User type
   const user = userSnapshot.data()!;
   const basiq = user.basiq;
 
   if (basiq.configStatus === "NOT_CONFIGURED") {
-    throw new https.HttpsError('failed-precondition', 'A Basiq user has not been created for this user');
+    throw new HttpsError('failed-precondition', 'A Basiq user has not been created for this user');
   }
 
   const availableAccounts = await listAccounts(basiq.uid);
@@ -140,7 +151,8 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
     .withConverter(userDocConverter)
     .set(updatedUser)
     .catch((err) => {
-      throw new https.HttpsError('internal', 'Error writing user to Firestore', err);
+      logger.error(`Error writing user to Firestore`, err);
+      throw new HttpsError('internal', 'Error writing user to Firestore', err);
     });
   
   if (!refreshTransactions) return;
@@ -162,7 +174,9 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
       'transaction.postDate': { from: fetchFrom }
     });
     
-    if (query.next) console.log(`Data not fully fetched. Next: ${query.next.link}`)
+    if (query.next) {
+      logger.log(`Data not fully fetched. Next: ${query.next.link}`)
+    }
     const transactions = query.data;
 
     // We are doing this in a for-loop and push rather than Array.prototype methods
@@ -200,6 +214,10 @@ export const refreshBasiqInfo = async (uid: string, refreshTransactions=true, tr
     basiqTransactions.forEach(async transaction => {
       await transaction[1]
         .set(transaction[0])
+        .catch((err) => {
+          logger.error(`Error writing transaction to Firestore`, err);
+          throw new HttpsError('internal', 'Error writing transaction to Firestore', err);
+        })
     })
 
     if (transactionsCallbackFn) await transactionsCallbackFn(updatedUser, basiqTransactions);

@@ -1,68 +1,104 @@
-import * as functions from 'firebase-functions';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { AuthBlockingEvent, beforeUserCreated } from 'firebase-functions/v2/identity';
+import { logger } from 'firebase-functions';
+import { setGlobalOptions } from 'firebase-functions/v2/options';
 import { initializeApp } from 'firebase-admin/app';
-// require("firebase-functions/logger/compat");
-initializeApp();
 
 import { 
-  createUser as createFirestoreUser,
+    createUser as createFirestoreUser,
 } from './services/user';
 import {
-  getBasiqClientToken,
-  initBasiqUser,
-  refreshBasiqInfo
+    getBasiqClientToken,
+    initBasiqUser,
+    refreshBasiqInfo
 } from './services/basiq';
 import { processRoundupTransactions } from './services/roundup';
 import { userCollectionRef } from './utils/firestore';
 
-const regionFunctions = functions.region('australia-southeast1')
+setGlobalOptions({ region: 'australia-southeast1' });
 
-export const createUser = regionFunctions.auth.user().beforeCreate(async (user) => {
-  const { uid } = user;
-  await createFirestoreUser(uid);
+initializeApp();
+
+export const createUser = beforeUserCreated(async (event: AuthBlockingEvent) => {
+  const { uid } = event.data;
+  return createFirestoreUser(uid)
+    .then(() => {
+      logger.log(`Created user ${uid}`)
+    })   
+    .catch((err) => {
+      logger.error(`Error creating user ${uid}`, err)
+      throw err;
+    });
 })
 
-export const createBasiqUser = regionFunctions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
+export const createBasiqUser = onCall(async (request) => {
+    console.log("HELLO");
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'You must be logged in to call this function');
   }
 
-  if (!context.auth.token.phone_number) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must have a phone number to call this function');
+  if (!request.auth.token.phone_number) {
+    throw new HttpsError('permission-denied', 'You must have a phone number to call this function');
   }
 
-  const { uid } = context.auth;
-  const { phone_number } = context.auth.token;
-  const { firstName, lastName, email } = data;
+  const { uid } = request.auth;
+  const { phone_number } = request.auth.token;
+  const { firstName, lastName, email } = request.data;
 
-  console.log("creating Basiq user")
-  
-  await initBasiqUser(uid, phone_number, firstName, lastName, email);
+  return initBasiqUser(uid, phone_number, firstName, lastName, email)
+    .then(() => {
+      logger.log(`Created Basiq user for ${uid}`);
+    })
+    .catch((err) => {
+      logger.error(`Error creating Basiq user for ${uid}`, err);
+      throw err;
+    });
 })
 
-export const refreshUserBasiqInfo = regionFunctions.https.onCall(async (_, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
+export const refreshUserBasiqInfo = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'You must be logged in to call this function');
   }
 
-  const { uid } = context.auth;
-  await refreshBasiqInfo(uid, true, processRoundupTransactions);
+  const { uid } = request.auth;
+  return refreshBasiqInfo(uid, true, processRoundupTransactions)
+    .then(() => {
+      logger.log(`Refreshed Basiq info for ${uid}`);
+    })
+    .catch((err) => {
+      logger.error(`Error refreshing Basiq info for ${uid}`, err);
+      throw err;
+    });
 })
 
-export const getClientToken = regionFunctions.https.onCall(async (_, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to call this function');
+export const getClientToken = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'You must be logged in to call this function');
   }
 
-  const { uid } = context.auth;
-  return {
-    access_token: await getBasiqClientToken(uid)
-  };
+  const { uid } = request.auth;
+  return getBasiqClientToken(uid).
+    catch((err) => {
+      logger.error(`Error getting client token for ${uid}`, err);
+      throw err;
+    });
 })
 
-export const refreshAllUsersBasiqInfo = regionFunctions.pubsub.schedule('every 12 hours').onRun(async () => {
-  const users = await userCollectionRef.where('basiq.configStatus', '==', 'COMPLETE').get();
-  for (const user of users.docs) {
-    const userData = user.data();
-    await refreshBasiqInfo(userData.uid, true, processRoundupTransactions);
-  }
+export const refreshAllUsersBasiqInfo = onSchedule('every 12 hours', async (_) => {
+  return userCollectionRef.where('basiq.configStatus', '==', 'COMPLETE').get()
+    .then((users) => {    
+      for (const user of users.docs) {
+        const userData = user.data();
+        refreshBasiqInfo(userData.uid, true, processRoundupTransactions)
+          .catch((err) => {
+            logger.error(`Error refreshing Basiq info for ${userData.uid}`, err);
+            throw err;
+          })
+      }
+    })
+    .catch((err) => {
+      logger.error(`Error refreshing users`, err);
+      throw err;
+    });
 });

@@ -1,19 +1,28 @@
-import { firestore } from 'firebase-admin';
-import { https } from 'firebase-functions';
+import { 
+  getFirestore,
+  DocumentReference,
+  FirestoreDataConverter,
+  QueryDocumentSnapshot,
+  CollectionReference,
+  Timestamp
+} from 'firebase-admin/firestore';
+import { HttpsError } from 'firebase-functions/v2/https';
 import type { BasiqToken, BasiqTransaction } from '../models/Basiq';
 import { OnyaTransaction } from '../models/OnyaTransaction';
 import type { User } from '../models/User';
 
-export const basiqTokenDocRef = firestore().collection('env').doc('basiqToken') as firestore.DocumentReference<BasiqToken>;
+const db = getFirestore();
 
-export const basiqTokenConverter: firestore.FirestoreDataConverter<BasiqToken> = {
+export const basiqTokenDocRef = db.collection('env').doc('basiqToken') as DocumentReference<BasiqToken>;
+
+export const basiqTokenConverter: FirestoreDataConverter<BasiqToken> = {
   toFirestore(basiqToken: BasiqToken): FirebaseFirestore.DocumentData {
     return basiqToken;
   },
-  fromFirestore(snapshot: firestore.QueryDocumentSnapshot): BasiqToken {
+  fromFirestore(snapshot: QueryDocumentSnapshot): BasiqToken {
     const data = snapshot.data();
     if (!matchesBasiqToken(data)) {
-      throw new https.HttpsError('failed-precondition', 'The document is not a valid BasiqToken');
+      throw new HttpsError('failed-precondition', 'The document is not a valid BasiqToken');
     } else {
       return {
         access_token: data.access_token,
@@ -23,9 +32,9 @@ export const basiqTokenConverter: firestore.FirestoreDataConverter<BasiqToken> =
   }
 }
 
-export const userCollectionRef = firestore().collection('users') as firestore.CollectionReference<User>;
+export const userCollectionRef = db.collection('users');
 
-export const userDocConverter: firestore.FirestoreDataConverter<User> = {
+export const userDocConverter: FirestoreDataConverter<User> = {
   toFirestore(user: User): FirebaseFirestore.DocumentData {
     return { 
       ...user,
@@ -34,7 +43,7 @@ export const userDocConverter: firestore.FirestoreDataConverter<User> = {
         ...(user.basiq.configStatus === 'COMPLETE') ? {
           availableAccounts: user.basiq.availableAccounts.map(account => ({
             ...account,
-            lastUpdated: firestore.Timestamp.fromDate(account.lastUpdated)
+            lastUpdated: Timestamp.fromDate(account.lastUpdated)
           }))
         } : {}
       },
@@ -43,13 +52,13 @@ export const userDocConverter: firestore.FirestoreDataConverter<User> = {
         roundup: user.donationMethods.roundup,
         nextDebit: user.donationMethods.nextDebit
       },
-      userCreated: firestore.Timestamp.fromDate(user.userCreated)
+      userCreated: Timestamp.fromDate(user.userCreated)
     };
   },
-  fromFirestore(snapshot: firestore.QueryDocumentSnapshot): User {  
+  fromFirestore(snapshot: QueryDocumentSnapshot): User {  
     const data = snapshot.data();
     if (!matchesUser(data)) {
-      throw new https.HttpsError('failed-precondition', 'The document is not a valid User');
+      throw new HttpsError('failed-precondition', 'The document is not a valid User');
     } else {
       return {
         basiq: {
@@ -95,7 +104,7 @@ function matchesUser(obj: any): boolean {
             matchesNextDebit(obj.donationMethods.nextDebit) &&
             matchesRoundupConfig(obj.donationMethods.roundup) &&
             typeof obj.uid === 'string' &&
-            obj.userCreated instanceof firestore.Timestamp &&
+            obj.userCreated instanceof Timestamp &&
             (obj.email == null || typeof obj.email === 'string'));
   } catch (_) {
     return false;
@@ -126,7 +135,7 @@ function matchesDonationSource(obj: any): boolean {
     const validDonationMethods = ['roundup']
     return (validDonationMethods.includes(obj.method) &&
             typeof obj.amount === 'number' &&
-            obj.basiqTransaction instanceof firestore.DocumentReference &&
+            obj.basiqTransaction instanceof DocumentReference &&
             obj.basiqTransaction.parent.id === 'basiqTransactions' &&
             matchesCharitySelection(obj.charitySelection))
   } catch (_) {
@@ -203,32 +212,32 @@ function matchesBasiqAccount(obj: any): boolean {
             typeof obj.id === 'string' &&
             typeof obj.institution === 'string' &&
             typeof obj.name === 'string' &&
-            obj.lastUpdated instanceof firestore.Timestamp)
+            obj.lastUpdated instanceof Timestamp)
   } catch (_) {
     return false;
   }
 }
 
-export const getBasiqTransactionsCollectionRef = (userRef: firestore.DocumentReference) => {
+export const getBasiqTransactionsCollectionRef = (userRef: DocumentReference) => {
   if (userRef.parent.id !== 'users') {
     throw new Error("The input is not a reference to a user doc")
   }
 
-  return userRef.collection('basiqTransactions') as firestore.CollectionReference<BasiqTransaction>;
+  return userRef.collection('basiqTransactions') as CollectionReference<BasiqTransaction>;
 } 
 
-export const basiqTransactionConverter: firestore.FirestoreDataConverter<BasiqTransaction> = {
+export const basiqTransactionConverter: FirestoreDataConverter<BasiqTransaction> = {
   toFirestore(basiqTransaction: BasiqTransaction): FirebaseFirestore.DocumentData {
     return {
       ...basiqTransaction,
-      postDate: basiqTransaction.postDate && firestore.Timestamp.fromDate(basiqTransaction.postDate),
-      transactionDate: basiqTransaction.transactionDate && firestore.Timestamp.fromDate(basiqTransaction.transactionDate)
+      postDate: basiqTransaction.postDate && Timestamp.fromDate(basiqTransaction.postDate),
+      transactionDate: basiqTransaction.transactionDate && Timestamp.fromDate(basiqTransaction.transactionDate)
     };
   },
-  fromFirestore(snapshot: firestore.QueryDocumentSnapshot): BasiqTransaction {
+  fromFirestore(snapshot: QueryDocumentSnapshot): BasiqTransaction {
     const data = snapshot.data();
     if (!matchesBasiqTransaction(data)) {
-      throw new https.HttpsError('failed-precondition', 'The document is not a valid BasiqTransaction');
+      throw new HttpsError('failed-precondition', 'The document is not a valid BasiqTransaction');
     } else {
       return {
         id: data.id,
@@ -270,29 +279,29 @@ function matchesBasiqTransaction(obj: any): boolean {
             typeof obj.id === 'string' &&
             (obj.id === 'debit' || obj.id === 'credit') &&
             typeof obj.institutionId ==='string' &&
-            (obj.postDate == null || obj.postDate instanceof firestore.Timestamp) &&
+            (obj.postDate == null || obj.postDate instanceof Timestamp) &&
             typeof obj.status === 'string' &&
             (obj.status === 'pending' || obj.status === 'posted') &&
-            (obj.transactionDate == null || obj.transactionDate instanceof firestore.Timestamp))
+            (obj.transactionDate == null || obj.transactionDate instanceof Timestamp))
   } catch (_) {
     return false;
   }
 }
 
-export const onyaTransactionCollectionRef = firestore().collection('onyaTransactions') as firestore.CollectionReference<OnyaTransaction>;
+export const onyaTransactionCollectionRef = db.collection('onyaTransactions') as CollectionReference<OnyaTransaction>;
 
-export const onyaTransactionConverter: firestore.FirestoreDataConverter<OnyaTransaction> = {
+export const onyaTransactionConverter: FirestoreDataConverter<OnyaTransaction> = {
   toFirestore(onyaTransaction: OnyaTransaction): FirebaseFirestore.DocumentData {
     return {
       ...onyaTransaction,
-      created: firestore.Timestamp.fromDate(onyaTransaction.created),
-      updated: firestore.Timestamp.fromDate(onyaTransaction.updated)
+      created: Timestamp.fromDate(onyaTransaction.created),
+      updated: Timestamp.fromDate(onyaTransaction.updated)
     };
   },
-  fromFirestore(snapshot: firestore.QueryDocumentSnapshot): OnyaTransaction {
+  fromFirestore(snapshot: QueryDocumentSnapshot): OnyaTransaction {
     const data = snapshot.data();
     if (!matchesOnyaTransaction(data)) {
-      throw new https.HttpsError('failed-precondition', 'The document is not a valid BasiqTransaction');
+      throw new HttpsError('failed-precondition', 'The document is not a valid BasiqTransaction');
     } else {
       return {
         basiqJobId: data.basiqJobId,
@@ -313,8 +322,8 @@ function matchesOnyaTransaction(obj: any): boolean {
 
   try {
     return (typeof obj.basiqJobId === 'string' &&
-            obj.created instanceof firestore.Timestamp &&
-            obj.updated instanceof firestore.Timestamp &&
+            obj.created instanceof Timestamp &&
+            obj.updated instanceof Timestamp &&
             validStatus.includes(obj.status) &&
             typeof obj.payer.userId === 'string' &&
             typeof obj.payer.basiqUserId === 'string' &&
