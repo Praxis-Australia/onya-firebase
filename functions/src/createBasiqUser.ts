@@ -48,7 +48,7 @@ export const getCreateBasiqUser = (db: Db, logger: Logger, basiqApiKey: SecretPa
 
   const basiq = new Basiq(basiqApiKey.value(), db.basiqTokenDocRef)
 
-  return initBasiqUser(basiq, userDoc, email, phone_number, firstName, lastName)
+  return initBasiqUser(basiq, userDoc, phone_number, email, firstName, lastName)
     .then(() => {
       logger.log(`Created Basiq user for ${uid}`);
     })
